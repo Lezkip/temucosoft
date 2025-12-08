@@ -1,0 +1,73 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="p-4 bg-light rounded-3 border">
+            <h1>Panel de Control</h1>
+            <p class="lead">Bienvenido, <strong>{{ request.user.first_name|default:request.user.username }}</strong>.</p>
+            <span class="badge bg-secondary">{{ request.user.get_role_display }}</span>
+            {% if request.user.company %}
+                <span class="badge bg-info text-dark">{{ request.user.company }}</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    {% if request.user.role in 'vendedor,gerente,admin_cliente,super_admin' %}
+    <div class="col-md-4">
+        <div class="card h-100 border-primary">
+            <div class="card-header bg-primary text-white">Ventas y POS</div>
+            <div class="card-body">
+                <h5 class="card-title">Punto de Venta</h5>
+                <p class="card-text">Registrar nuevas ventas presenciales y gestionar caja.</p>
+                <a href="{% url 'pos' %}" class="btn btn-outline-primary w-100 mb-2">Iniciar POS</a>
+                <a href="{% url 'product_list' %}" class="btn btn-outline-secondary w-100">Ver Catálogo</a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if request.user.role in 'gerente,admin_cliente,super_admin' %}
+    <div class="col-md-4">
+        <div class="card h-100 border-success">
+            <div class="card-header bg-success text-white">Inventario y Logística</div>
+            <div class="card-body">
+                <h5 class="card-title">Control de Stock</h5>
+                <p class="card-text">Gestionar productos, proveedores y ajustes de inventario.</p>
+                <a href="#" class="btn btn-outline-success w-100 mb-2">Gestionar Inventario</a>
+                <a href="#" class="btn btn-outline-success w-100 mb-2">Proveedores</a>
+                <a href="#" class="btn btn-outline-success w-100">Productos</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card h-100 border-warning">
+            <div class="card-header bg-warning text-dark">Reportes</div>
+            <div class="card-body">
+                <h5 class="card-title">Inteligencia de Negocio</h5>
+                <p class="card-text">Visualizar métricas de ventas y movimientos de stock.</p>
+                <a href="/api/reports/sales/" class="btn btn-outline-dark w-100 mb-2">Reporte de Ventas (JSON)</a>
+                <a href="/api/reports/stock/" class="btn btn-outline-dark w-100">Reporte de Stock (JSON)</a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if request.user.role == 'admin_cliente' or request.user.role == 'super_admin' %}
+    <div class="col-md-4">
+        <div class="card h-100 border-danger">
+            <div class="card-header bg-danger text-white">Administración</div>
+            <div class="card-body">
+                <h5 class="card-title">Configuración Global</h5>
+                <p class="card-text">Gestionar usuarios, sucursales y suscripciones.</p>
+                <a href="#" class="btn btn-outline-danger w-100 mb-2">Usuarios</a>
+                <a href="#" class="btn btn-outline-danger w-100">Sucursales</a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

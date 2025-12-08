@@ -1,0 +1,182 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="row" id="posApp">
+    <div class="col-md-8">
+        <div class="card mb-3">
+            <div class="card-body">
+                <input type="text" id="searchInput" class="form-control form-control-lg" placeholder="Buscar por SKU o Nombre...">
+            </div>
+        </div>
+        
+        <div class="card" style="height: 60vh; overflow-y: auto;">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>SKU</th>
+                                <th>Producto</th>
+                                <th>Precio</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productTable">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow h-100">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">Ticket de Venta</h5>
+            </div>
+            <div class="card-body d-flex flex-column">
+                <div class="mb-3">
+                    <label class="form-label">Sucursal</label>
+                    <select id="branchSelect" class="form-select">
+                        {% for branch in branches %}
+                            <option value="{{ branch.id }}">{{ branch.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="flex-grow-1 overflow-auto border-bottom mb-3" style="max-height: 300px;">
+                    <table class="table table-sm">
+                        <tbody id="cartTable"></tbody>
+                    </table>
+                </div>
+
+                <div class="d-flex justify-content-between mb-3">
+                    <h3>Total:</h3>
+                    <h3 class="fw-bold">$<span id="totalAmount">0</span></h3>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button class="btn btn-primary btn-lg" onclick="processSale()">Confirmar Venta</button>
+                    <button class="btn btn-danger" onclick="clearCart()">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Datos pasados desde Django
+    const allProducts = JSON.parse('{{ products_json|escapejs }}');
+    let cart = [];
+
+    // 1. Renderizar Productos
+    const searchInput = document.getElementById('searchInput');
+    const productTable = document.getElementById('productTable');
+
+    function renderProducts(filterText = '') {
+        productTable.innerHTML = '';
+        const filtered = allProducts.filter(p => 
+            p.name.toLowerCase().includes(filterText.toLowerCase()) || 
+            p.sku.toLowerCase().includes(filterText.toLowerCase())
+        );
+
+        filtered.forEach(p => {
+            const row = `<tr>
+                <td>${p.sku}</td>
+                <td>${p.name}</td>
+                <td>$${p.price}</td>
+                <td><button class="btn btn-sm btn-success" onclick="addToCart(${p.id})">+</button></td>
+            </tr>`;
+            productTable.innerHTML += row;
+        });
+    }
+
+    // 2. Lógica del Carrito
+    function addToCart(productId) {
+        const product = allProducts.find(p => p.id === productId);
+        const existingItem = cart.find(item => item.product === productId);
+
+        if (existingItem) {
+            existingItem.quantity += 1;
+        } else {
+            cart.push({
+                product: productId,
+                name: product.name,
+                price: parseFloat(product.price),
+                quantity: 1
+            });
+        }
+        renderCart();
+    }
+
+    function renderCart() {
+        const cartTable = document.getElementById('cartTable');
+        const totalSpan = document.getElementById('totalAmount');
+        cartTable.innerHTML = '';
+        let total = 0;
+
+        cart.forEach((item, index) => {
+            total += item.price * item.quantity;
+            cartTable.innerHTML += `
+                <tr>
+                    <td>${item.name} <small class="text-muted">x${item.quantity}</small></td>
+                    <td class="text-end">$${item.price * item.quantity}</td>
+                    <td style="width: 20px;"><button class="btn btn-sm btn-danger py-0" onclick="removeFromCart(${index})">&times;</button></td>
+                </tr>
+            `;
+        });
+        totalSpan.innerText = total;
+    }
+
+    function removeFromCart(index) {
+        cart.splice(index, 1);
+        renderCart();
+    }
+
+    function clearCart() {
+        cart = [];
+        renderCart();
+    }
+
+    // 3. Procesar Venta (API)
+    async function processSale() {
+        if (cart.length === 0) return alert("El carrito está vacío");
+
+        const branchId = document.getElementById('branchSelect').value;
+        const payload = {
+            branch: branchId,
+            payment_method: 'cash',
+            items: cart.map(item => ({
+                product: item.product,
+                quantity: item.quantity
+            }))
+        };
+
+        try {
+            const response = await fetch('/api/sales/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}' // Auth de sesión Django
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                alert("Venta registrada correctamente");
+                clearCart();
+            } else {
+                const err = await response.json();
+                alert("Error: " + JSON.stringify(err));
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Error de conexión");
+        }
+    }
+
+    // Inicializar
+    renderProducts();
+    searchInput.addEventListener('input', (e) => renderProducts(e.target.value));
+</script>
+{% endblock %}
