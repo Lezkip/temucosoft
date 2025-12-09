@@ -1,0 +1,35 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card border-danger shadow-sm">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">Eliminar Sucursal</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-danger">
+                    <strong>⚠️ Advertencia:</strong> Esta acción no se puede deshacer.
+                </div>
+                <p>¿Está seguro de que desea eliminar la siguiente sucursal?</p>
+                
+                <div class="card bg-light mb-4">
+                    <div class="card-body">
+                        <p class="mb-2"><strong>Nombre:</strong> {{ branch.name }}</p>
+                        <p class="mb-2"><strong>Dirección:</strong> {{ branch.address|default:'-' }}</p>
+                        <p class="mb-0"><strong>Teléfono:</strong> {{ branch.phone|default:'-' }}</p>
+                    </div>
+                </div>
+
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'branch_list' %}" class="btn btn-secondary">Cancelar</a>
+                        <button type="submit" class="btn btn-danger">Eliminar Sucursal</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

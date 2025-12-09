@@ -1,0 +1,152 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <h2 class="mb-4">Carrito de Compras</h2>
+        
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div id="cart-items"></div>
+                <div id="empty-cart" class="text-center py-5" style="display:none;">
+                    <p class="text-muted">Tu carrito está vacío</p>
+                    <a href="{% url 'product_list' %}" class="btn btn-primary">Ver Productos</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Resumen</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tr>
+                        <th>Subtotal:</th>
+                        <td class="text-end" id="subtotal">$0</td>
+                    </tr>
+                    <tr>
+                        <th>Items:</th>
+                        <td class="text-end" id="total-items">0</td>
+                    </tr>
+                    <tr class="table-primary">
+                        <th>Total:</th>
+                        <th class="text-end" id="total">$0</th>
+                    </tr>
+                </table>
+                
+                <div class="d-grid gap-2">
+                    <a href="{% url 'checkout' %}" class="btn btn-success btn-lg" id="checkout-btn" disabled>
+                        Proceder al Checkout
+                    </a>
+                    <button class="btn btn-outline-danger" onclick="clearCart()">Vaciar Carrito</button>
+                    <a href="{% url 'product_list' %}" class="btn btn-outline-secondary">Seguir Comprando</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function renderCart() {
+    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+    const cartItemsDiv = document.getElementById('cart-items');
+    const emptyCartDiv = document.getElementById('empty-cart');
+    const checkoutBtn = document.getElementById('checkout-btn');
+    
+    console.log('Cart data:', cart); // Debug
+    
+    if (!cart || cart.length === 0) {
+        cartItemsDiv.innerHTML = '';
+        cartItemsDiv.style.display = 'none';
+        emptyCartDiv.style.display = 'block';
+        checkoutBtn.disabled = true;
+        document.getElementById('subtotal').textContent = '$0';
+        document.getElementById('total').textContent = '$0';
+        document.getElementById('total-items').textContent = '0';
+        return;
+    }
+    
+    cartItemsDiv.style.display = 'block';
+    emptyCartDiv.style.display = 'none';
+    checkoutBtn.disabled = false;
+    
+    let html = '<div class="table-responsive"><table class="table table-hover align-middle">';
+    html += '<thead class="table-light"><tr><th>Producto</th><th>Precio</th><th>Cantidad</th><th>Subtotal</th><th></th></tr></thead><tbody>';
+    
+    let total = 0;
+    let totalItems = 0;
+    
+    cart.forEach((item, index) => {
+        const price = parseFloat(item.price) || 0;
+        const quantity = parseInt(item.quantity) || 1;
+        const subtotal = price * quantity;
+        total += subtotal;
+        totalItems += quantity;
+        
+        console.log(`Item ${index}:`, item, 'Price:', price, 'Qty:', quantity, 'Subtotal:', subtotal); // Debug
+        
+        html += `
+            <tr>
+                <td>
+                    <strong>${item.name || 'Producto sin nombre'}</strong><br>
+                    <small class="text-muted">SKU: ${item.sku || 'N/A'}</small>
+                </td>
+                <td>CLP $${price.toLocaleString('es-CL', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</td>
+                <td>
+                    <div class="input-group" style="width: 120px;">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="updateQuantity(${index}, -1)">−</button>
+                        <input type="number" class="form-control form-control-sm text-center" value="${quantity}" readonly>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="updateQuantity(${index}, 1)">+</button>
+                    </div>
+                </td>
+                <td class="fw-bold">CLP $${subtotal.toLocaleString('es-CL', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</td>
+                <td>
+                    <button class="btn btn-sm btn-danger" onclick="removeItem(${index})">
+                        <i class="bi bi-trash"></i> Eliminar
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += '</tbody></table></div>';
+    cartItemsDiv.innerHTML = html;
+    
+    document.getElementById('subtotal').textContent = 'CLP $' + total.toLocaleString('es-CL', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+    document.getElementById('total').textContent = 'CLP $' + total.toLocaleString('es-CL', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+    document.getElementById('total-items').textContent = totalItems;
+}
+
+function updateQuantity(index, delta) {
+    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+    cart[index].quantity += delta;
+    
+    if (cart[index].quantity <= 0) {
+        cart.splice(index, 1);
+    }
+    
+    localStorage.setItem('cart', JSON.stringify(cart));
+    renderCart();
+}
+
+function removeItem(index) {
+    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+    cart.splice(index, 1);
+    localStorage.setItem('cart', JSON.stringify(cart));
+    renderCart();
+}
+
+function clearCart() {
+    if (confirm('¿Está seguro de que desea vaciar el carrito?')) {
+        localStorage.removeItem('cart');
+        renderCart();
+    }
+}
+
+// Renderizar al cargar
+document.addEventListener('DOMContentLoaded', renderCart);
+</script>
+{% endblock %}

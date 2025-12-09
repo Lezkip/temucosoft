@@ -1,0 +1,180 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Historial de Ventas (POS + E-commerce)</h2>
+</div>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Sucursal (solo POS)</label>
+                <select name="branch" class="form-select">
+                    <option value="">Todas</option>
+                    {% for branch in branches %}
+                        <option value="{{ branch.id }}" {% if filters.branch == branch.id|stringformat:"s" %}selected{% endif %}>
+                            {{ branch.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Desde</label>
+                <input type="date" name="date_from" class="form-control" value="{{ filters.date_from }}" id="dateFrom">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Hasta</label>
+                <input type="date" name="date_to" class="form-control" value="{{ filters.date_to }}" id="dateTo">
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- VENTAS POS -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">📊 Ventas POS ({{ sales.count }})</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>Fecha</th>
+                        <th>Sucursal</th>
+                        <th>Vendedor</th>
+                        <th>Método Pago</th>
+                        <th class="text-end">Total</th>
+                        <th>Items</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sale in sales %}
+                    <tr>
+                        <td><code>#{{ sale.id }}</code></td>
+                        <td>{{ sale.created_at|date:"d/m/Y H:i" }}</td>
+                        <td>{{ sale.branch.name }}</td>
+                        <td>{{ sale.user.username }}</td>
+                        <td><span class="badge bg-info">{{ sale.get_payment_method_display }}</span></td>
+                        <td class="text-end fw-bold">CLP ${{ sale.total|floatformat:0 }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" type="button" 
+                                    data-bs-toggle="collapse" data-bs-target="#items-sale-{{ sale.id }}">
+                                Ver ({{ sale.items.count }})
+                            </button>
+                        </td>
+                    </tr>
+                    <tr class="collapse" id="items-sale-{{ sale.id }}">
+                        <td colspan="7">
+                            <div class="p-3 bg-light">
+                                <strong>Detalle de items:</strong>
+                                <ul class="mb-0">
+                                    {% for item in sale.items.all %}
+                                        <li>{{ item.product.name }} - Cantidad: {{ item.quantity }} - Precio: CLP ${{ item.price|floatformat:0 }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-3 text-muted">No hay ventas POS registradas.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- COMPRAS E-COMMERCE -->
+<div class="card shadow-sm">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0">🛒 Compras E-commerce ({{ orders.count }})</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>Fecha</th>
+                        <th>Cliente</th>
+                        <th>Email</th>
+                        <th>Estado</th>
+                        <th class="text-end">Total</th>
+                        <th>Items</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td><code>#{{ order.id }}</code></td>
+                        <td>{{ order.created_at|date:"d/m/Y H:i" }}</td>
+                        <td>{{ order.customer_name }}</td>
+                        <td><small>{{ order.customer_email }}</small></td>
+                        <td>
+                            {% if order.status == 'pending' %}
+                                <span class="badge bg-warning text-dark">Pendiente</span>
+                            {% elif order.status == 'paid' %}
+                                <span class="badge bg-success">Pagada</span>
+                            {% elif order.status == 'shipped' %}
+                                <span class="badge bg-info">Enviada</span>
+                            {% elif order.status == 'delivered' %}
+                                <span class="badge bg-secondary">Entregada</span>
+                            {% else %}
+                                <span class="badge bg-danger">{{ order.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end fw-bold">CLP ${{ order.total|floatformat:0 }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-success" type="button" 
+                                    data-bs-toggle="collapse" data-bs-target="#items-order-{{ order.id }}">
+                                Ver ({{ order.items.count }})
+                            </button>
+                        </td>
+                    </tr>
+                    <tr class="collapse" id="items-order-{{ order.id }}">
+                        <td colspan="7">
+                            <div class="p-3 bg-light">
+                                <strong>Detalle de items:</strong>
+                                <ul class="mb-0">
+                                    {% for item in order.items.all %}
+                                        <li>{{ item.product.name }} - Cantidad: {{ item.quantity }} - Precio: CLP ${{ item.price|floatformat:0 }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-3 text-muted">No hay compras e-commerce registradas.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+// Limitar inputs de fecha a hoy o antes
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    const dateFromInput = document.getElementById('dateFrom');
+    const dateToInput = document.getElementById('dateTo');
+    
+    if (dateFromInput) {
+        dateFromInput.max = today;
+    }
+    if (dateToInput) {
+        dateToInput.max = today;
+    }
+});
+</script>
+{% endblock %}

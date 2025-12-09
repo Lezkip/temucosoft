@@ -1,0 +1,131 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-lg">
+                <div class="card-body">
+                    <!-- Volver al catálogo -->
+                    <a href="{% url 'product_list' %}" class="btn btn-sm btn-secondary mb-3">← Volver al Catálogo</a>
+
+                    <!-- Nombre del Producto -->
+                    <h2 class="mb-1">{{ product.name }}</h2>
+                    <p class="text-muted mb-3">SKU: <code>{{ product.sku }}</code></p>
+
+                    <hr>
+
+                    <!-- Descripción -->
+                    <div class="mb-4">
+                        <h5>Descripción</h5>
+                        <p class="lead">{{ product.description|default:'Sin descripción disponible.' }}</p>
+                    </div>
+
+                    <!-- Categoría -->
+                    <div class="mb-3">
+                        <label class="text-muted">Categoría:</label>
+                        <p><span class="badge bg-secondary">{{ product.category|default:'-' }}</span></p>
+                    </div>
+
+                    <!-- Precio (lo único que ve cliente_final) -->
+                    <div class="mb-4">
+                        <h5 class="text-muted">Precio</h5>
+                        <p class="display-5 fw-bold text-success">CLP ${{ product.price|floatformat:0 }}</p>
+                    </div>
+
+                    <!-- Cantidad y Agregar al Carrito -->
+                    <div class="card bg-light p-3 mb-3">
+                        <label for="quantityInput" class="form-label fw-bold">Cantidad:</label>
+                        <div class="input-group mb-3">
+                            <button class="btn btn-outline-secondary" type="button" id="decreaseBtn">−</button>
+                            <input type="number" class="form-control text-center" id="quantityInput" value="1" min="1" max="999">
+                            <button class="btn btn-outline-secondary" type="button" id="increaseBtn">+</button>
+                        </div>
+
+                        <button class="btn btn-primary btn-lg w-100" 
+                                id="addToCartBtn"
+                                data-product-id="{{ product.id }}"
+                                data-product-sku="{{ product.sku }}"
+                                data-product-name="{{ product.name }}"
+                                data-product-price="{{ product.price }}">
+                            🛒 Agregar al Carrito
+                        </button>
+                    </div>
+
+                    <!-- Enlace al carrito -->
+                    <div class="text-center">
+                        <a href="{% url 'cart' %}" class="btn btn-outline-info">Ver mi Carrito</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const quantityInput = document.getElementById('quantityInput');
+    const decreaseBtn = document.getElementById('decreaseBtn');
+    const increaseBtn = document.getElementById('increaseBtn');
+    const addToCartBtn = document.getElementById('addToCartBtn');
+
+    // Botones de cantidad
+    decreaseBtn.addEventListener('click', function () {
+        let value = parseInt(quantityInput.value);
+        if (value > 1) quantityInput.value = value - 1;
+    });
+
+    increaseBtn.addEventListener('click', function () {
+        let value = parseInt(quantityInput.value);
+        quantityInput.value = value + 1;
+    });
+
+    // Agregar al carrito
+    addToCartBtn.addEventListener('click', function () {
+        const productId = this.dataset.productId;
+        const productSku = this.dataset.productSku;
+        const productName = this.dataset.productName;
+        const productPrice = this.dataset.productPrice;
+        const quantity = parseInt(quantityInput.value);
+
+        if (quantity < 1) {
+            alert('La cantidad debe ser mayor a 0');
+            return;
+        }
+
+        // Obtener carrito del localStorage
+        let cart = JSON.parse(localStorage.getItem('cart')) || [];
+
+        // Buscar si el producto ya está en el carrito
+        let item = cart.find(p => p.id == productId);
+        if (item) {
+            item.quantity += quantity;
+        } else {
+            cart.push({
+                id: productId,
+                sku: productSku,
+                name: productName,
+                price: productPrice,
+                quantity: quantity
+            });
+        }
+
+        // Guardar en localStorage
+        localStorage.setItem('cart', JSON.stringify(cart));
+
+        // Feedback visual
+        this.innerText = '✓ Agregado al Carrito';
+        this.classList.add('btn-success');
+        this.classList.remove('btn-primary');
+        this.disabled = true;
+
+        setTimeout(() => {
+            this.innerText = '🛒 Agregar al Carrito';
+            this.classList.remove('btn-success');
+            this.classList.add('btn-primary');
+            this.disabled = false;
+            quantityInput.value = 1; // Reset cantidad
+        }, 2000);
+    });
+});
+</script>

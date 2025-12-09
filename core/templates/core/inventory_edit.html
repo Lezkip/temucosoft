@@ -1,0 +1,39 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Ajustar Stock - {{ inventory.product.name }}</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <strong>Información del Producto</strong>
+                    <ul class="mb-0">
+                        <li><strong>SKU:</strong> <code>{{ inventory.product.sku }}</code></li>
+                        <li><strong>Sucursal:</strong> {{ inventory.branch.name }}</li>
+                        <li><strong>Stock Actual:</strong> <strong class="text-warning">{{ inventory.stock }} unidades</strong></li>
+                    </ul>
+                </div>
+
+                <form method="POST">
+                    {% csrf_token %}
+                    
+                    <div class="mb-4">
+                        <label for="stock" class="form-label">Nuevo Stock *</label>
+                        <input type="number" class="form-control form-control-lg" id="stock" name="stock" 
+                               value="{{ inventory.stock }}" min="0" required>
+                        <small class="text-muted">Ingrese la cantidad actual que hay en el almacén</small>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'inventory' %}" class="btn btn-secondary">Cancelar</a>
+                        <button type="submit" class="btn btn-primary btn-lg">Actualizar Stock</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

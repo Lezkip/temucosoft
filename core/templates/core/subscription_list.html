@@ -1,0 +1,64 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Gestión de Suscripciones</h2>
+    <a href="{% url 'subscription_create' %}" class="btn btn-primary">
+        <i class="bi bi-plus-lg"></i> Nueva Suscripción
+    </a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        {% if subscriptions %}
+        <div class="table-responsive">
+            <table class="table table-hover table-striped align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Empresa</th>
+                        <th>Plan</th>
+                        <th>Inicio</th>
+                        <th>Término</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for subscription in subscriptions %}
+                    <tr>
+                        <td>
+                            <strong>{{ subscription.company }}</strong>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ subscription.get_plan_name_display }}</span>
+                        </td>
+                        <td>{{ subscription.start_date|date:"d/m/Y" }}</td>
+                        <td>{{ subscription.end_date|date:"d/m/Y" }}</td>
+                        <td>
+                            {% if subscription.active %}
+                                {% now "Y-m-d" as today %}
+                                {% if subscription.end_date|date:"Y-m-d" < today %}
+                                    <span class="badge bg-danger">Vencida</span>
+                                {% elif subscription.end_date|date:"Y-m-d" <= today|add:"30 days" %}
+                                    <span class="badge bg-warning text-dark">Próxima a vencer</span>
+                                {% else %}
+                                    <span class="badge bg-success">Activa</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-secondary">Inactiva</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'subscription_edit' subscription.id %}" class="btn btn-sm btn-warning">Editar</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-center text-muted py-4">No hay suscripciones registradas.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,126 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <h2 class="mb-4">Finalizar Pedido</h2>
+        
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Resumen del Pedido</h5>
+            </div>
+            <div class="card-body">
+                <div id="checkout-items"></div>
+                <hr>
+                <div class="d-flex justify-content-between">
+                    <h4>Total:</h4>
+                    <h4 class="text-success" id="checkout-total">$0</h4>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0">Datos de Entrega</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" onsubmit="submitOrder(event)">
+                    {% csrf_token %}
+                    <input type="hidden" name="cart_data" id="cart_data">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Nombre Completo</label>
+                        <input type="text" class="form-control" name="customer_name" 
+                               value="{% if request.user.is_authenticated %}{{ request.user.get_full_name|default:request.user.username }}{% endif %}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" name="customer_email" 
+                               value="{% if request.user.is_authenticated %}{{ request.user.email }}{% endif %}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Dirección de Entrega</label>
+                        <textarea class="form-control" name="address" rows="2" required></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Método de Pago</label>
+                        <select class="form-select" name="payment_method" required>
+                            <option value="">Seleccionar...</option>
+                            <option value="cash">Efectivo</option>
+                            <option value="debit">Débito</option>
+                            <option value="credit">Crédito</option>
+                            <option value="transfer">Transferencia</option>
+                        </select>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success btn-lg">Confirmar Pedido</button>
+                        <a href="{% url 'cart' %}" class="btn btn-outline-secondary">Volver al Carrito</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function renderCheckout() {
+    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+    const checkoutItemsDiv = document.getElementById('checkout-items');
+    
+    if (cart.length === 0) {
+        window.location.href = "{% url 'cart' %}";
+        return;
+    }
+    
+    let html = '<table class="table table-sm">';
+    let total = 0;
+    
+    cart.forEach(item => {
+        const subtotal = item.price * item.quantity;
+        total += subtotal;
+        
+        html += `
+            <tr>
+                <td>${item.name} <small class="text-muted">x${item.quantity}</small></td>
+                <td class="text-end">$${subtotal.toFixed(0)}</td>
+            </tr>
+        `;
+    });
+    
+    html += '</table>';
+    checkoutItemsDiv.innerHTML = html;
+    document.getElementById('checkout-total').textContent = '$' + total.toFixed(0);
+}
+
+function submitOrder(event) {
+    event.preventDefault();
+    
+    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+    
+    if (cart.length === 0) {
+        alert('El carrito está vacío');
+        return;
+    }
+    
+    // Preparar datos del carrito
+    const cartData = cart.map(item => ({
+        product_id: item.id,
+        quantity: item.quantity
+    }));
+    
+    document.getElementById('cart_data').value = JSON.stringify(cartData);
+    
+    // Enviar formulario
+    event.target.submit();
+    
+    // Limpiar carrito después de enviar
+    localStorage.removeItem('cart');
+}
+
+renderCheckout();
+</script>
+{% endblock %}

@@ -1,0 +1,106 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Reporte de Stock por Sucursal</h2>
+    <form method="GET" class="d-inline-flex gap-2">
+        <select name="branch" class="form-select" onchange="this.form.submit()">
+            <option value="">Todas las Sucursales</option>
+            {% for branch in branches %}
+                <option value="{{ branch.id }}" {% if selected_branch == branch.id|stringformat:"s" %}selected{% endif %}>
+                    {{ branch.name }}
+                </option>
+            {% endfor %}
+        </select>
+    </form>
+</div>
+
+{% for data in report_data %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">{{ data.branch.name }}</h5>
+        <div>
+            <span class="badge bg-light text-dark me-2">{{ data.total_units }} unidades</span>
+            <span class="badge bg-success">CLP ${{ data.total_value|floatformat:0 }}</span>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if data.inventory %}
+        <div class="table-responsive">
+            <table class="table table-hover table-striped align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>SKU</th>
+                        <th>Producto</th>
+                        <th class="text-center">Stock Actual</th>
+                        <th class="text-end">Precio Unitario</th>
+                        <th class="text-end">Valor Total</th>
+                        <th class="text-center">Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for inv in data.inventory %}
+                    <tr>
+                        <td><code>{{ inv.product.sku }}</code></td>
+                        <td>
+                            <a href="{% url 'product_detail' inv.product.id %}">{{ inv.product.name }}</a>
+                        </td>
+                        <td class="text-center">
+                            {% if inv.stock > 20 %}
+                                <span class="badge bg-success">{{ inv.stock }}</span>
+                            {% elif inv.stock > inv.reorder_point %}
+                                <span class="badge bg-warning text-dark">{{ inv.stock }}</span>
+                            {% else %}
+                                <span class="badge bg-danger">{{ inv.stock }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">CLP ${{ inv.product.price|floatformat:0 }}</td>
+                        <td class="text-end fw-bold">
+                            {% widthratio inv.stock 1 inv.product.price as total_line %}
+                            CLP ${{ total_line|floatformat:0 }}
+                        </td>
+                        <td class="text-center">
+                            {% if inv.stock <= inv.reorder_point %}
+                                <span class="badge bg-danger">⚠️ Reordenar</span>
+                            {% elif inv.stock <= 20 %}
+                                <span class="badge bg-warning text-dark">Stock Bajo</span>
+                            {% else %}
+                                <span class="badge bg-success">OK</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <th colspan="2">Totales</th>
+                        <th class="text-center">{{ data.total_units }}</th>
+                        <th></th>
+                        <th class="text-end">CLP ${{ data.total_value|floatformat:0 }}</th>
+                        <th></th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted text-center py-4">No hay inventario en esta sucursal.</p>
+        {% endif %}
+    </div>
+</div>
+{% empty %}
+<div class="alert alert-warning">
+    No hay datos de inventario disponibles.
+</div>
+{% endfor %}
+
+<div class="mt-4">
+    <a href="{% url 'reports' %}" class="btn btn-secondary">← Volver a Reportes</a>
+    <button class="btn btn-primary" onclick="window.print()">Imprimir Reporte</button>
+</div>
+
+<style>
+@media print {
+    .navbar, .btn, form { display: none !important; }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,86 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    {% if mode == 'create' %}
+                        Crear Nuevo Producto
+                    {% else %}
+                        Editar Producto: {{ product.name }}
+                    {% endif %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="sku" class="form-label">SKU *</label>
+                        <input type="text" class="form-control" id="sku" name="sku" 
+                               value="{% if product %}{{ product.sku }}{% endif %}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Nombre del Producto *</label>
+                        <input type="text" class="form-control" id="name" name="name" 
+                               value="{% if product %}{{ product.name }}{% endif %}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="category" class="form-label">Categoría</label>
+                        <input type="text" class="form-control" id="category" name="category" 
+                               value="{% if product %}{{ product.category }}{% endif %}"
+                               placeholder="Ej: Electrónica, Alimentos, etc.">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="supplier" class="form-label">Proveedor</label>
+                        <select class="form-select" id="supplier" name="supplier">
+                            <option value="">Sin proveedor</option>
+                            {% for supplier in suppliers %}
+                                <option value="{{ supplier.id }}" {% if product and product.supplier.id == supplier.id %}selected{% endif %}>
+                                    {{ supplier.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="price" class="form-label">Precio Venta (CLP) *</label>
+                            <input type="text" class="form-control" id="price" name="price" 
+                                   min="0" value="{% if product %}{{ product.price|floatformat:0 }}{% endif %}" required 
+                                   pattern="[0-9]*" inputmode="numeric" onkeypress="return /[0-9]/.test(String.fromCharCode(event.which))">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="cost" class="form-label">Costo (CLP)</label>
+                            <input type="text" class="form-control" id="cost" name="cost" 
+                                   min="0" value="{% if product %}{{ product.cost|floatformat:0 }}{% endif %}" 
+                                   pattern="[0-9]*" inputmode="numeric" onkeypress="return /[0-9]/.test(String.fromCharCode(event.which))">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Descripción</label>
+                        <textarea class="form-control" id="description" name="description" rows="3">{% if product %}{{ product.description }}{% endif %}</textarea>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'product_list' %}" class="btn btn-secondary">Cancelar</a>
+                        <button type="submit" class="btn btn-primary">
+                            {% if mode == 'create' %}
+                                Crear Producto
+                            {% else %}
+                                Guardar Cambios
+                            {% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

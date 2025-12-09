@@ -1,0 +1,67 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<h2 class="mb-4">Reporte de Proveedores</h2>
+
+{% if error %}
+<div class="alert alert-danger">{{ error }}</div>
+{% else %}
+
+<div class="row">
+    {% if suppliers_data %}
+        {% for supplier in suppliers_data %}
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">{{ supplier.name }}</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm mb-3">
+                        <tr>
+                            <th>RUT:</th>
+                            <td><code>{{ supplier.rut }}</code></td>
+                        </tr>
+                        <tr>
+                            <th>Contacto:</th>
+                            <td>{{ supplier.contact|default:'-' }}</td>
+                        </tr>
+                    </table>
+
+                    {% if supplier.products %}
+                    <div class="mt-3">
+                        <h6 class="mb-2">Productos Suministrados</h6>
+                        <div class="list-group list-group-sm">
+                            {% for product in supplier.products %}
+                            <a href="{% url 'product_detail' product.id %}" class="list-group-item list-group-item-action">
+                                <div class="d-flex justify-content-between">
+                                    <strong>{{ product.name }}</strong>
+                                    <span class="badge bg-primary">{{ product.sku }}</span>
+                                </div>
+                                <small class="text-muted">Precio: CLP ${{ product.price|floatformat:0 }}</small>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-muted small mt-2">Sin productos registrados</p>
+                    {% endif %}
+
+                    {% if supplier.last_orders %}
+                    <div class="mt-3">
+                        <h6 class="mb-2">Últimos Pedidos</h6>
+                        <small class="text-muted">Próximamente</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="col-md-12">
+            <div class="alert alert-info">No hay proveedores disponibles.</div>
+        </div>
+    {% endif %}
+</div>
+
+{% endif %}
+{% endblock %}

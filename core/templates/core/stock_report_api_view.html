@@ -1,0 +1,94 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<h2 class="mb-4">Reporte de Stock</h2>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-light">
+        <h5 class="mb-0">Filtros</h5>
+    </div>
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Sucursal</label>
+                <select name="branch" class="form-select">
+                    <option value="">Todas las sucursales</option>
+                    {% for branch in branches %}
+                        <option value="{{ branch.id }}" {% if selected_branch == branch.id|stringformat:'s' %}selected{% endif %}>
+                            {{ branch.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if error %}
+<div class="alert alert-danger">{{ error }}</div>
+{% else %}
+
+<div class="row">
+    {% if stock_data.branches %}
+        {% for branch in stock_data.branches %}
+        <div class="col-md-12 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">{{ branch.branch_name|default:branch.id }}</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th class="text-end">Stock</th>
+                                <th class="text-end">Precio Unitario</th>
+                                <th class="text-end">Valor Total</th>
+                                <th class="text-center">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in branch.products %}
+                            <tr>
+                                <td>{{ item.product_name }}</td>
+                                <td class="text-end">{{ item.stock }}</td>
+                                <td class="text-end">CLP ${{ item.price|floatformat:0 }}</td>
+                                <td class="text-end">CLP ${{ item.total_value|floatformat:0 }}</td>
+                                <td class="text-center">
+                                    {% if item.stock > 20 %}
+                                        <span class="badge bg-success">Abundante</span>
+                                    {% elif item.stock > 5 %}
+                                        <span class="badge bg-warning text-dark">Normal</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Bajo</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-primary fw-bold">
+                                <td colspan="3">Valor Total de Inventario</td>
+                                <td class="text-end">CLP ${{ branch.total_inventory_value|floatformat:0 }}</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="col-md-12">
+            <div class="alert alert-info">No hay datos de stock disponibles.</div>
+        </div>
+    {% endif %}
+</div>
+
+{% endif %}
+{% endblock %}

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Product, Branch, Supplier, Inventory, Sale, SaleItem, Order, OrderItem
+from .models import User, Product, Branch, Supplier, Inventory, Sale, SaleItem, Order, OrderItem, Purchase, PurchaseItem, CartItem, Subscription
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -123,3 +123,74 @@ class OrderSerializer(serializers.ModelSerializer):
         order.total = total_order
         order.save()
         return order
+
+# --- Serializadores para Compras a Proveedores ---
+
+class PurchaseItemSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    
+    class Meta:
+        model = PurchaseItem
+        fields = ['product', 'product_name', 'quantity', 'cost']
+
+class PurchaseSerializer(serializers.ModelSerializer):
+    items = PurchaseItemSerializer(many=True)
+    supplier_name = serializers.CharField(source='supplier.name', read_only=True)
+
+    class Meta:
+        model = Purchase
+        fields = ['id', 'supplier', 'supplier_name', 'branch', 'date', 'total', 'notes', 'created_at', 'items']
+        read_only_fields = ['total', 'created_at']
+
+    def create(self, validated_data):
+        items_data = validated_data.pop('items')
+        purchase = Purchase.objects.create(**validated_data)
+        
+        total_purchase = 0
+        for item_data in items_data:
+            product = item_data['product']
+            quantity = item_data['quantity']
+            cost = item_data['cost']
+            
+            PurchaseItem.objects.create(purchase=purchase, **item_data)
+            
+            # Incrementar stock en la sucursal correspondiente
+            inventory, created = Inventory.objects.get_or_create(
+                branch=purchase.branch,
+                product=product,
+                defaults={'stock': 0}
+            )
+            inventory.stock += quantity
+            inventory.save()
+            
+            total_purchase += cost * quantity
+            
+        purchase.total = total_purchase
+        purchase.save()
+        return purchase
+
+# --- Serializador para Carrito ---
+
+class CartItemSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    product_price = serializers.IntegerField(source='product.price', read_only=True)
+    subtotal = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CartItem
+        fields = ['id', 'product', 'product_name', 'product_price', 'quantity', 'subtotal', 'added_at']
+        read_only_fields = ['added_at']
+
+    def get_subtotal(self, obj):
+        return obj.product.price * obj.quantity
+
+# --- Serializador para Suscripciones ---
+
+class SubscriptionSerializer(serializers.ModelSerializer):
+    user_username = serializers.CharField(source='user.username', read_only=True)
+    plan_display = serializers.CharField(source='get_plan_name_display', read_only=True)
+
+    class Meta:
+        model = Subscription
+        fields = ['id', 'user', 'user_username', 'plan_name', 'plan_display', 'start_date', 'end_date', 'active']
+        read_only_fields = []

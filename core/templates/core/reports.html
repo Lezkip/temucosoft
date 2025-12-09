@@ -1,0 +1,43 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<h2 class="mb-4">Reportes e Inteligencia de Negocio</h2>
+
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-box-seam"></i> Reporte de Stock</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Visualiza el inventario actual por sucursal con valores totales y alertas de stock bajo.</p>
+                <a href="{% url 'stock_report' %}" class="btn btn-primary">Ver Reporte de Stock</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-graph-up"></i> Reporte de Ventas</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Analiza ventas por periodo, sucursal y vendedor con totales y tendencias.</p>
+                <a href="{% url 'sales_list' %}" class="btn btn-success">Ver Reporte de Ventas</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="bi bi-people"></i> Reporte de Proveedores</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Lista de proveedores con datos de contacto y productos suministrados.</p>
+                <a href="{% url 'supplier_list' %}" class="btn btn-secondary">Ver Reporte de Proveedores</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card border-danger shadow-sm">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">Eliminar Usuario</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-danger">
+                    <strong>⚠️ Advertencia:</strong> Esta acción no se puede deshacer.
+                </div>
+                <p>¿Está seguro de que desea eliminar el siguiente usuario?</p>
+                
+                <div class="card bg-light mb-4">
+                    <div class="card-body">
+                        <p class="mb-2"><strong>Usuario:</strong> {{ user.username }}</p>
+                        <p class="mb-2"><strong>Email:</strong> {{ user.email|default:'-' }}</p>
+                        <p class="mb-2"><strong>Nombre:</strong> {{ user.first_name }} {{ user.last_name }}</p>
+                        <p class="mb-0"><strong>Rol:</strong> <span class="badge bg-secondary">{{ user.get_role_display }}</span></p>
+                    </div>
+                </div>
+
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'user_list' %}" class="btn btn-secondary">Cancelar</a>
+                        <button type="submit" class="btn btn-danger">Eliminar Usuario</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,107 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    {% if mode == 'create' %}
+                        Crear Nuevo Proveedor
+                    {% else %}
+                        Editar Proveedor: {{ supplier.name }}
+                    {% endif %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Nombre del Proveedor *</label>
+                        <input type="text" class="form-control" id="name" name="name" 
+                               value="{% if supplier %}{{ supplier.name }}{% endif %}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="rut" class="form-label">RUT *</label>
+                        <input type="text" class="form-control" id="rut" name="rut" 
+                               value="{% if supplier %}{{ supplier.rut }}{% endif %}" 
+                               pattern="^\d{1,2}\.\d{3}\.\d{3}-[\dkK]$"
+                               placeholder="12.345.678-9"
+                               title="Formato: 12.345.678-9"
+                               required>
+                        <small class="text-muted">Formato: 12.345.678-9</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="contact" class="form-label">Contacto</label>
+                        <input type="text" class="form-control" id="contact" name="contact" 
+                               value="{% if supplier %}{{ supplier.contact }}{% endif %}"
+                               placeholder="Email o teléfono">
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'supplier_list' %}" class="btn btn-secondary">Cancelar</a>
+                        <button type="submit" class="btn btn-primary">
+                            {% if mode == 'create' %}
+                                Crear Proveedor
+                            {% else %}
+                                Guardar Cambios
+                            {% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const rutInput = document.getElementById('rut');
+    
+    if (rutInput) {
+        rutInput.addEventListener('input', function(e) {
+            // Obtener solo los dígitos y la K
+            let value = e.target.value.replace(/[^\dkK]/g, '').toUpperCase();
+            
+            // Limitar longitud máxima (12345678K = 9 caracteres)
+            if (value.length > 9) {
+                value = value.slice(0, 9);
+            }
+            
+            // Si hay al menos 2 caracteres (mínimo para formatear)
+            if (value.length >= 2) {
+                // Separar el dígito verificador
+                const dv = value.slice(-1);
+                let rut = value.slice(0, -1);
+                
+                // Formatear con puntos (de derecha a izquierda)
+                let formatted = '';
+                let counter = 0;
+                
+                for (let i = rut.length - 1; i >= 0; i--) {
+                    if (counter === 3) {
+                        formatted = '.' + formatted;
+                        counter = 0;
+                    }
+                    formatted = rut[i] + formatted;
+                    counter++;
+                }
+                
+                // Agregar el guión y dígito verificador
+                e.target.value = formatted + '-' + dv;
+            } else {
+                e.target.value = value;
+            }
+        });
+        
+        // Al cargar, formatear si ya hay valor
+        if (rutInput.value) {
+            rutInput.dispatchEvent(new Event('input'));
+        }
+    }
+});
+</script>
+{% endblock %}

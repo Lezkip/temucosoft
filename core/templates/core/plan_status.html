@@ -1,0 +1,108 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <h2 class="mb-4">🎯 Estado de tu Plan</h2>
+            
+            {% if subscription %}
+            <div class="card shadow-lg border-primary mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Plan: <strong>{{ subscription.plan_name }}</strong></h4>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Fecha de Inicio</h6>
+                            <p class="display-6" style="font-size: 1.2rem;">{{ subscription.start_date|date:"d/m/Y" }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Fecha de Vencimiento</h6>
+                            <p class="display-6" style="font-size: 1.2rem;">{{ subscription.end_date|date:"d/m/Y" }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-success">
+                        <strong>✅ Estado: Activo</strong>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h5 class="mb-3">Características incluidas en tu plan:</h5>
+                    <ul class="list-group list-group-flush">
+                        {% if plan_features.max_branches %}
+                        <li class="list-group-item">
+                            <strong>📍 Sucursales:</strong> Hasta {{ plan_features.max_branches }} sucursales
+                        </li>
+                        {% endif %}
+                        
+                        {% if plan_features.max_users %}
+                        <li class="list-group-item">
+                            <strong>👥 Usuarios:</strong> Hasta {{ plan_features.max_users }} usuarios
+                        </li>
+                        {% endif %}
+                        
+                        {% if plan_features.inventory_tracking %}
+                        <li class="list-group-item">
+                            <strong>📦 Inventario:</strong> 
+                            <span class="badge bg-success">Incluido</span>
+                        </li>
+                        {% endif %}
+                        
+                        {% if plan_features.pos_system %}
+                        <li class="list-group-item">
+                            <strong>💳 Sistema POS:</strong> 
+                            <span class="badge bg-success">Incluido</span>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item">
+                            <strong>💳 Sistema POS:</strong> 
+                            <span class="badge bg-secondary">No incluido</span>
+                        </li>
+                        {% endif %}
+                        
+                        {% if plan_features.reports %}
+                        <li class="list-group-item">
+                            <strong>📊 Reportes:</strong> 
+                            <span class="badge bg-success">Incluido</span>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item">
+                            <strong>📊 Reportes:</strong> 
+                            <span class="badge bg-secondary">No incluido</span>
+                        </li>
+                        {% endif %}
+                        
+                        {% if plan_features.api_access %}
+                        <li class="list-group-item">
+                            <strong>🔌 Acceso a API:</strong> 
+                            <span class="badge bg-success">Incluido</span>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item">
+                            <strong>🔌 Acceso a API:</strong> 
+                            <span class="badge bg-secondary">No incluido</span>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="alert alert-info">
+                💡 <strong>Nota:</strong> Para cambiar tu plan o agregar más funcionalidades, contacta con administración.
+            </div>
+            {% else %}
+            <div class="alert alert-warning" role="alert">
+                <h4 class="alert-heading">⚠️ Sin Plan Activo</h4>
+                <p>Actualmente no tienes un plan de suscripción activo. Las funcionalidades estarán limitadas.</p>
+                <hr>
+                <p class="mb-0">Contacta con el administrador para contratar un plan.</p>
+            </div>
+            {% endif %}
+            
+            <a href="{% url 'home' %}" class="btn btn-secondary mt-3">← Volver al Inicio</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

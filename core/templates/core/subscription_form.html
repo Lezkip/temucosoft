@@ -1,0 +1,118 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    {% if mode == 'create' %}
+                        Crear Nueva Suscripción
+                    {% else %}
+                        Editar Suscripción
+                    {% endif %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {% csrf_token %}
+
+                    {% if mode == 'edit' %}
+                    <div class="mb-3">
+                        <label class="form-label">Empresa</label>
+                        <input type="text" class="form-control" value="{{ subscription.company }}" readonly>
+                    </div>
+                    {% else %}
+                    <div class="mb-3">
+                        <label for="company" class="form-label">Empresa *</label>
+                        <select id="company" name="company" class="form-select" required>
+                            <option value="">Seleccionar empresa...</option>
+                            {% for company in companies %}
+                                <option value="{{ company }}">{{ company }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label for="plan_name" class="form-label">Plan *</label>
+                        <select id="plan_name" name="plan_name" class="form-select" required>
+                            <option value="">Seleccionar plan...</option>
+                            {% for code, label in plans %}
+                                <option value="{{ code }}" {% if mode == 'edit' and subscription.plan_name == code %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted d-block mt-2">
+                            <strong>Básico:</strong> 1 sucursal, 5 usuarios, sin reportes<br>
+                            <strong>Estándar:</strong> 3 sucursales, 20 usuarios, reportes + POS<br>
+                            <strong>Premium:</strong> Ilimitado, todo incluido con acceso a API
+                        </small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="start_date" class="form-label">Fecha de Inicio *</label>
+                        <input type="date" id="start_date" name="start_date" class="form-control" 
+                               value="{% if mode == 'edit' %}{{ subscription.start_date|date:'Y-m-d' }}{% endif %}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="end_date" class="form-label">Fecha de Término *</label>
+                        <input type="date" id="end_date" name="end_date" class="form-control" 
+                               value="{% if mode == 'edit' %}{{ subscription.end_date|date:'Y-m-d' }}{% endif %}" required>
+                    </div>
+
+                    {% if mode == 'edit' %}
+                    <div class="mb-3">
+                        <label class="form-label">
+                            <input type="checkbox" name="active" {% if subscription.active %}checked{% endif %}>
+                            Activa
+                        </label>
+                    </div>
+                    {% endif %}
+
+                    <div class="d-flex gap-2">
+                        <a href="{% if mode == 'edit' %}{% url 'subscription_list' %}{% else %}{% url 'subscription_list' %}{% endif %}" class="btn btn-secondary">Cancelar</a>
+                        <button type="submit" class="btn btn-primary">
+                            {% if mode == 'create' %}
+                                Crear Suscripción
+                            {% else %}
+                                Guardar Cambios
+                            {% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const startInput = document.getElementById('start_date');
+    const endInput = document.getElementById('end_date');
+    const today = new Date().toISOString().split('T')[0];
+    
+    if (startInput && endInput) {
+        // start_date: máximo hoy (no puede ser superior a hoy)
+        startInput.max = today;
+        
+        // end_date: mínimo hoy (no puede ser inferior a hoy)
+        endInput.min = today;
+        
+        // Si cambia start_date, validar que end_date sea válido
+        startInput.addEventListener('change', function() {
+            if (endInput.value && endInput.value < today) {
+                endInput.value = today;
+            }
+        });
+        
+        // Si cambia end_date, validar que sea >= hoy
+        endInput.addEventListener('change', function() {
+            if (this.value < today) {
+                this.value = today;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

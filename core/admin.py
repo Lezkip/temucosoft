@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, Subscription, Branch, Supplier, Product, Inventory, Sale, SaleItem, Order, OrderItem
+from .models import User, Subscription, Branch, Supplier, Product, Inventory, Sale, SaleItem, Order, OrderItem, Purchase, PurchaseItem, CartItem
 
 # --- Usuario ---
 @admin.register(User)
@@ -42,6 +42,26 @@ class OrderAdmin(admin.ModelAdmin):
     list_filter = ('status', 'created_at')
     inlines = [OrderItemInline]
     readonly_fields = ('created_at',)
+
+# --- Compras a Proveedores ---
+class PurchaseItemInline(admin.TabularInline):
+    model = PurchaseItem
+    extra = 1
+    autocomplete_fields = ['product']
+
+@admin.register(Purchase)
+class PurchaseAdmin(admin.ModelAdmin):
+    list_display = ('id', 'supplier', 'branch', 'date', 'total', 'created_at')
+    list_filter = ('branch', 'date', 'supplier')
+    inlines = [PurchaseItemInline]
+    readonly_fields = ('created_at',)
+
+# --- Carrito de Compra ---
+@admin.register(CartItem)
+class CartItemAdmin(admin.ModelAdmin):
+    list_display = ('user', 'product', 'quantity', 'added_at')
+    list_filter = ('user', 'added_at')
+    search_fields = ['user__username', 'product__name']
 
 # --- Registros Simples (Ya no incluye Product porque se registró arriba) ---
 admin.site.register(Subscription)
