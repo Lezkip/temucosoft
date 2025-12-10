@@ -25,12 +25,16 @@
                     {% else %}
                     <div class="mb-3">
                         <label for="company" class="form-label">Empresa *</label>
-                        <select id="company" name="company" class="form-select" required>
-                            <option value="">Seleccionar empresa...</option>
+                        <select id="company_select" class="form-select" onchange="toggleNewCompany()">
+                            <option value="">Seleccionar empresa existente...</option>
                             {% for company in companies %}
                                 <option value="{{ company }}">{{ company }}</option>
                             {% endfor %}
+                            <option value="__new__">➕ Crear nueva empresa</option>
                         </select>
+                        <input type="text" id="company_new" name="company" class="form-control mt-2" 
+                               placeholder="Nombre de la nueva empresa" style="display: none;">
+                        <small class="text-muted" id="company_help" style="display: none;">Ingrese el nombre de la nueva empresa (ej: "Empresa ABC Ltda")</small>
                     </div>
                     {% endif %}
 
@@ -87,6 +91,43 @@
 </div>
 
 <script>
+function toggleNewCompany() {
+    const select = document.getElementById('company_select');
+    const newInput = document.getElementById('company_new');
+    const helpText = document.getElementById('company_help');
+    
+    if (select.value === '__new__') {
+        // Mostrar input para nueva empresa
+        select.style.display = 'none';
+        newInput.style.display = 'block';
+        newInput.required = true;
+        helpText.style.display = 'block';
+        newInput.focus();
+        
+        // Botón para volver al select
+        if (!document.getElementById('back_to_select')) {
+            const backBtn = document.createElement('button');
+            backBtn.type = 'button';
+            backBtn.id = 'back_to_select';
+            backBtn.className = 'btn btn-sm btn-link';
+            backBtn.textContent = '← Volver a seleccionar empresa existente';
+            backBtn.onclick = function() {
+                select.style.display = 'block';
+                newInput.style.display = 'none';
+                newInput.required = false;
+                newInput.value = '';
+                helpText.style.display = 'none';
+                select.value = '';
+                this.remove();
+            };
+            newInput.parentNode.insertBefore(backBtn, newInput.nextSibling);
+        }
+    } else if (select.value !== '') {
+        // Usar empresa seleccionada
+        newInput.value = select.value;
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const startInput = document.getElementById('start_date');
     const endInput = document.getElementById('end_date');
@@ -110,6 +151,19 @@ document.addEventListener('DOMContentLoaded', function() {
         endInput.addEventListener('change', function() {
             if (this.value < today) {
                 this.value = today;
+            }
+        });
+    }
+    
+    // Sincronizar select con input oculto al enviar
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const select = document.getElementById('company_select');
+            const newInput = document.getElementById('company_new');
+            
+            if (select.style.display !== 'none' && select.value && select.value !== '__new__') {
+                newInput.value = select.value;
             }
         });
     }
