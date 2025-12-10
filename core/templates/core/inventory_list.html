@@ -54,7 +54,9 @@
                             {% endif %}
                         </td>
                         <td>
-                            <a href="{% url 'inventory_edit' inv.id %}" class="btn btn-sm btn-outline-primary">Ajustar Stock</a>
+                            {% if request.user.role != 'super_admin' %}
+                                <a href="{% url 'inventory_edit' inv.id %}" class="btn btn-sm btn-outline-primary">Ajustar Stock</a>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}

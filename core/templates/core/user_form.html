@@ -63,6 +63,14 @@
                         </div>
                     </div>
 
+                    {% if request.user.role == 'super_admin' %}
+                    <div class="mb-3">
+                        <label class="form-label">Rol *</label>
+                        <input type="hidden" name="role" value="admin_cliente">
+                        <div class="form-control bg-light">Admin Cliente</div>
+                        <small class="text-muted">El super_admin solo crea cuentas administrador-cliente.</small>
+                    </div>
+                    {% else %}
                     <div class="mb-3">
                         <label for="role" class="form-label">Rol *</label>
                         <select class="form-select" id="role" name="role" required>
@@ -73,19 +81,17 @@
                             <option value="cliente_final" {% if user.role == 'cliente_final' %}selected{% endif %}>Cliente Final</option>
                         </select>
                     </div>
+                    {% endif %}
 
                     {% if request.user.role == 'super_admin' and mode == 'create' %}
                     <div class="mb-3">
                         <label for="company" class="form-label">Empresa *</label>
-                        <input type="text" class="form-control" id="company" name="company" 
-                               list="companies-list" required
-                               placeholder="Ingrese el nombre de la empresa">
-                        <datalist id="companies-list">
+                        <select class="form-select" id="company" name="company" required>
+                            <option value="">-- Seleccionar empresa --</option>
                             {% for company in companies %}
-                                <option value="{{ company }}">
+                                <option value="{{ company }}">{{ company }}</option>
                             {% endfor %}
-                        </datalist>
-                        <small class="text-muted">Seleccione de la lista o ingrese una nueva empresa</small>
+                        </select>
                     </div>
                     {% endif %}
 

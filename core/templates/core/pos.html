@@ -12,12 +12,13 @@
         <div class="card" style="height: 60vh; overflow-y: auto;">
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-hover">
+                    <table class="table table-hover align-middle">
                         <thead>
                             <tr>
                                 <th>SKU</th>
                                 <th>Producto</th>
-                                <th>Precio</th>
+                                <th class="text-end">Precio</th>
+                                <th class="text-center">Stock</th>
                                 <th>Acción</th>
                             </tr>
                         </thead>
@@ -68,6 +69,8 @@
     // Datos pasados desde Django
     const allProducts = JSON.parse('{{ products_json|escapejs }}');
     let cart = [];
+    let currentBranch = null;
+    const inventoryMap = JSON.parse('{{ inventory_json|escapejs }}');
 
     // 1. Renderizar Productos
     const searchInput = document.getElementById('searchInput');
@@ -81,11 +84,19 @@
         );
 
         filtered.forEach(p => {
+            const stock = inventoryMap[p.id] && currentBranch ? (inventoryMap[p.id][currentBranch] || 0) : 0;
+            const disabled = stock <= 0 ? 'disabled' : '';
+            const stockBadge = stock > 10
+                ? `<span class="badge bg-success">${stock}</span>`
+                : stock > 0
+                    ? `<span class="badge bg-warning text-dark">${stock}</span>`
+                    : '<span class="badge bg-danger">0</span>';
             const row = `<tr>
                 <td>${p.sku}</td>
                 <td>${p.name}</td>
-                <td>$${p.price}</td>
-                <td><button class="btn btn-sm btn-success" onclick="addToCart(${p.id})">+</button></td>
+                <td class="text-end">$${Number(p.price).toLocaleString('es-CL')}</td>
+                <td class="text-center">${stockBadge}</td>
+                <td><button class="btn btn-sm btn-success" ${disabled} onclick="addToCart(${p.id})">+</button></td>
             </tr>`;
             productTable.innerHTML += row;
         });
@@ -95,6 +106,12 @@
     function addToCart(productId) {
         const product = allProducts.find(p => p.id === productId);
         const existingItem = cart.find(item => item.product === productId);
+        const available = inventoryMap[productId] && currentBranch ? (inventoryMap[productId][currentBranch] || 0) : 0;
+        const nextQty = (existingItem ? existingItem.quantity : 0) + 1;
+        if (nextQty > available) {
+            alert('Stock insuficiente en la sucursal seleccionada.');
+            return;
+        }
 
         if (existingItem) {
             existingItem.quantity += 1;
@@ -120,12 +137,12 @@
             cartTable.innerHTML += `
                 <tr>
                     <td>${item.name} <small class="text-muted">x${item.quantity}</small></td>
-                    <td class="text-end">$${item.price * item.quantity}</td>
+                    <td class="text-end">$${(item.price * item.quantity).toLocaleString('es-CL')}</td>
                     <td style="width: 20px;"><button class="btn btn-sm btn-danger py-0" onclick="removeFromCart(${index})">&times;</button></td>
                 </tr>
             `;
         });
-        totalSpan.innerText = total;
+        totalSpan.innerText = total.toLocaleString('es-CL');
     }
 
     function removeFromCart(index) {
@@ -143,6 +160,7 @@
         if (cart.length === 0) return alert("El carrito está vacío");
 
         const branchId = document.getElementById('branchSelect').value;
+        currentBranch = branchId ? parseInt(branchId) : null;
         const payload = {
             branch: branchId,
             payment_method: 'cash',
@@ -164,7 +182,14 @@
 
             if (response.ok) {
                 alert("Venta registrada correctamente");
+                // Actualizar stock local según lo vendido
+                cart.forEach(item => {
+                    if (inventoryMap[item.product] && inventoryMap[item.product][currentBranch] !== undefined) {
+                        inventoryMap[item.product][currentBranch] -= item.quantity;
+                    }
+                });
                 clearCart();
+                renderProducts(searchInput.value);
             } else {
                 const err = await response.json();
                 alert("Error: " + JSON.stringify(err));
@@ -176,7 +201,15 @@
     }
 
     // Inicializar
+    const branchSelect = document.getElementById('branchSelect');
+    currentBranch = branchSelect.value ? parseInt(branchSelect.value) : null;
     renderProducts();
     searchInput.addEventListener('input', (e) => renderProducts(e.target.value));
+    branchSelect.addEventListener('change', (e) => {
+        currentBranch = e.target.value ? parseInt(e.target.value) : null;
+        cart = [];
+        renderCart();
+        renderProducts(searchInput.value);
+    });
 </script>
 {% endblock %}

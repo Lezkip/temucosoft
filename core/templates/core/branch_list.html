@@ -3,9 +3,11 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>Gestión de Sucursales</h2>
-    <a href="{% url 'branch_create' %}" class="btn btn-success">
-        <i class="bi bi-plus-lg"></i> Nueva Sucursal
-    </a>
+    {% if request.user.role != 'super_admin' %}
+        <a href="{% url 'branch_create' %}" class="btn btn-success">
+            <i class="bi bi-plus-lg"></i> Nueva Sucursal
+        </a>
+    {% endif %}
 </div>
 
 <div class="card shadow-sm">
@@ -31,8 +33,10 @@
                             <span class="badge bg-info">{{ branch.inventory_set.count }} items</span>
                         </td>
                         <td>
-                            <a href="{% url 'branch_edit' branch.id %}" class="btn btn-sm btn-outline-warning">Editar</a>
-                            <a href="{% url 'branch_delete' branch.id %}" class="btn btn-sm btn-outline-danger">Eliminar</a>
+                            {% if request.user.role != 'super_admin' %}
+                                <a href="{% url 'branch_edit' branch.id %}" class="btn btn-sm btn-outline-warning">Editar</a>
+                                <a href="{% url 'branch_delete' branch.id %}" class="btn btn-sm btn-outline-danger">Eliminar</a>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}

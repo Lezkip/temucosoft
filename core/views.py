@@ -87,7 +87,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     
     def get_permissions(self):
         # super_admin puede hacer todo
-        if self.request.user.role == 'super_admin':
+        if self.request.user.is_superuser or self.request.user.role == 'super_admin':
             return [permissions.IsAuthenticated()]
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
             return [IsGerente()]
@@ -99,14 +99,14 @@ class BranchViewSet(viewsets.ModelViewSet):
     
     def get_permissions(self):
         # super_admin tiene acceso total
-        if self.request.user and self.request.user.role == 'super_admin':
+        if self.request.user and (self.request.user.is_superuser or self.request.user.role == 'super_admin'):
             return [permissions.IsAuthenticated()]
         return [IsAdminCliente, HasAPIAccess]
     
     def create(self, request, *args, **kwargs):
         """Validar límite de sucursales según plan antes de crear"""
         # super_admin no tiene límite
-        if request.user.role != 'super_admin':
+        if not request.user.is_superuser and request.user.role != 'super_admin':
             max_branches = get_plan_limit(request.user, 'max_branches')
             current_branches = Branch.objects.count()
             
@@ -124,7 +124,7 @@ class SupplierViewSet(viewsets.ModelViewSet):
     
     def get_permissions(self):
         # super_admin tiene acceso total
-        if self.request.user and self.request.user.role == 'super_admin':
+        if self.request.user and (self.request.user.is_superuser or self.request.user.role == 'super_admin'):
             return [permissions.IsAuthenticated()]
         return [IsGerente]
 
@@ -136,7 +136,7 @@ class InventoryViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         # super_admin tiene acceso total
-        if self.request.user and self.request.user.role == 'super_admin':
+        if self.request.user and (self.request.user.is_superuser or self.request.user.role == 'super_admin'):
             return [permissions.IsAuthenticated()]
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
             return [IsGerente()]
@@ -149,7 +149,7 @@ class SaleViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         # super_admin tiene acceso total
-        if self.request.user and self.request.user.role == 'super_admin':
+        if self.request.user and (self.request.user.is_superuser or self.request.user.role == 'super_admin'):
             return [permissions.IsAuthenticated()]
         return [IsVendedor()]
 
@@ -187,7 +187,7 @@ class ReportViewSet(viewsets.ViewSet):
     
     def get_permissions(self):
         # super_admin tiene acceso total
-        if hasattr(self, 'request') and self.request.user and self.request.user.role == 'super_admin':
+        if hasattr(self, 'request') and self.request.user and (self.request.user.is_superuser or self.request.user.role == 'super_admin'):
             return [permissions.IsAuthenticated()]
         return [IsGerente()]
     
@@ -457,15 +457,21 @@ class CartViewSet(viewsets.ViewSet):
 # ==========================================
 
 def home_view(request):
+    if not request.user.is_authenticated:
+        return redirect('company_login')
     return render(request, 'core/index.html')
 
 def company_login_view(request):
     """Paso 1: seleccionar la empresa antes del login de usuario."""
+    # Obtener todas las empresas únicas que tienen usuarios
+    companies = User.objects.values_list('company', flat=True).distinct().order_by('company')
+    companies = [c for c in companies if c]  # Filtrar valores None o vacíos
+    
     if request.method == 'POST':
         company = request.POST.get('company', '').strip()
 
         if not company:
-            messages.error(request, "Ingresa el nombre de la empresa para continuar.")
+            messages.error(request, "Selecciona una empresa para continuar.")
             return redirect('company_login')
 
         # Validamos que exista al menos un usuario asociado a la empresa
@@ -478,7 +484,7 @@ def company_login_view(request):
         messages.success(request, f"Empresa '{company}' seleccionada. Ahora inicia sesión con tu usuario.")
         return redirect('login')
 
-    return render(request, 'core/company_login.html')
+    return render(request, 'core/company_login.html', {'companies': companies})
 
 
 def login_view(request):
@@ -503,7 +509,15 @@ def login_view(request):
                 return redirect('login')
 
             login(request, user)
-            return redirect('/')
+            # Redirigir según el rol del usuario
+            if user.role == 'super_admin':
+                return redirect('subscription_list')  # Super admin gestiona clientes/tenants
+            elif user.role == 'vendedor':
+                return redirect('pos')  # Vendedores van directamente al POS
+            elif user.role == 'cliente_final':
+                return redirect('product_list')  # Clientes van al catálogo de productos
+            else:
+                return redirect('product_list')  # Admin_cliente y gerentes van al listado de productos
         else:
             messages.error(request, "Usuario o contraseña inválidos")
     else:
@@ -530,14 +544,16 @@ def logout_view(request):
 
 @login_required
 def product_list_view(request):
-    # Permitido para todos los usuarios (interno o e-commerce)
-    # super_admin ve todos; otros ven solo productos de su empresa
+    # Super admin no gestiona productos (solo gestiona clientes/tenants)
     if request.user.role == 'super_admin':
-        products = Product.objects.select_related('supplier').annotate(total_stock=Sum('inventory__stock'))
+        messages.error(request, "Como super admin, gestiona clientes y suscripciones, no productos.")
+        return redirect('subscription_list')
+    
+    if request.user.is_superuser:
+        products = Product.objects.all().select_related('supplier').annotate(total_stock=Sum('inventory__stock'))
     else:
-        # Filtrar productos que estén en sucursales de su empresa
         products = Product.objects.filter(
-            inventory__branch__name__contains=request.user.company
+            inventory__branch__company=request.user.company
         ).distinct().select_related('supplier').annotate(total_stock=Sum('inventory__stock'))
     
     return render(request, 'core/product_list.html', {'products': products})
@@ -545,17 +561,17 @@ def product_list_view(request):
 
 @login_required
 def pos_view(request):
-    # Restricción de rol
-    if request.user.role not in ['vendedor', 'gerente', 'admin_cliente', 'super_admin']:
-        messages.error(request, "Acceso denegado al POS.")
-        return redirect('home')
+    # Restricción de rol (super_admin no tiene acceso al POS)
+    if not request.user.is_superuser and request.user.role not in ['vendedor', 'gerente', 'admin_cliente']:
+        messages.error(request, "No tiene acceso al POS.")
+        return redirect('subscription_list' if request.user.role == 'super_admin' else 'product_list')
 
-    # super_admin ve todos; otros ven solo productos de su empresa
-    if request.user.role == 'super_admin':
+    # super_admin y superusuarios ven todo; otros solo productos de su empresa
+    if request.user.is_superuser or request.user.role == 'super_admin':
         products_data = Product.objects.all()
     else:
         products_data = Product.objects.filter(
-            inventory__branch__name__contains=request.user.company
+            inventory__branch__company=request.user.company
         ).distinct()
     
     products_list = []
@@ -567,14 +583,24 @@ def pos_view(request):
             'price': int(p.price),
         })
 
-    # super_admin ve todas las sucursales; otros ven solo su empresa
-    if request.user.role == 'super_admin':
+    # super_admin y superusuarios ven todas las sucursales; otros ven solo su empresa
+    if request.user.is_superuser or request.user.role == 'super_admin':
         branches = Branch.objects.all()
+        inventory_qs = Inventory.objects.select_related('branch', 'product')
     else:
-        branches = Branch.objects.filter(name__contains=request.user.company)
+        branches = Branch.objects.filter(company=request.user.company)
+        inventory_qs = Inventory.objects.select_related('branch', 'product').filter(branch__company=request.user.company)
+    
+    # Mapa producto -> {branch_id: stock} para validar y mostrar stock en POS
+    inventory_map = {}
+    for inv in inventory_qs:
+        if inv.product_id not in inventory_map:
+            inventory_map[inv.product_id] = {}
+        inventory_map[inv.product_id][inv.branch_id] = inv.stock
     
     context = {
         'products_json': json.dumps(products_list, default=str),
+        'inventory_json': json.dumps(inventory_map, default=str),
         'branches': branches
     }
     return render(request, 'core/pos.html', context)
@@ -583,12 +609,12 @@ def pos_view(request):
 def user_list_view(request):
     """Muestra la lista de usuarios. Restringido a Admin Cliente."""
     # Restricción de rol
-    if request.user.role not in ['admin_cliente', 'super_admin']:
+    if not request.user.is_superuser and request.user.role not in ['admin_cliente', 'super_admin']:
         messages.error(request, "Acceso denegado. Se requiere rol de Administrador de Cliente.")
         return redirect('home')
 
-    # super_admin ve todos; admin_cliente solo ve su empresa
-    if request.user.role == 'super_admin':
+    # super_admin y superusuarios ven todos; admin_cliente solo ve su empresa
+    if request.user.is_superuser or request.user.role == 'super_admin':
         users = User.objects.all().order_by('username')
     else:
         users = User.objects.filter(company=request.user.company).order_by('username')
@@ -712,7 +738,7 @@ def product_delete_view(request, product_id):
 @login_required
 def user_create_view(request):
     """Crear nuevo usuario"""
-    if request.user.role not in ['admin_cliente', 'super_admin']:
+    if not request.user.is_superuser and request.user.role not in ['admin_cliente', 'super_admin']:
         messages.error(request, "No tiene permisos para crear usuarios.")
         return redirect('home')
     
@@ -723,7 +749,11 @@ def user_create_view(request):
         first_name = request.POST.get('first_name', '')
         last_name = request.POST.get('last_name', '')
         rut = request.POST.get('rut', '')
-        role = request.POST.get('role', 'vendedor')
+        # super_admin siempre crea cuentas admin_cliente
+        if request.user.role == 'super_admin':
+            role = 'admin_cliente'
+        else:
+            role = request.POST.get('role', 'vendedor')
         
         if not username or not password:
             messages.error(request, "Usuario y contraseña son requeridos.")
@@ -762,7 +792,10 @@ def user_create_view(request):
     if request.user.role == 'super_admin':
         companies = User.objects.exclude(company__isnull=True).exclude(company='').values_list('company', flat=True).distinct().order_by('company')
     
-    return render(request, 'core/user_form.html', {'mode': 'create', 'companies': companies})
+    return render(request, 'core/user_form.html', {
+        'mode': 'create',
+        'companies': companies,
+    })
 
 
 @login_required
@@ -770,12 +803,12 @@ def user_edit_view(request, user_id):
     """Editar usuario existente"""
     user_obj = get_object_or_404(User, id=user_id)
     
-    if request.user.role not in ['admin_cliente', 'super_admin']:
+    if not request.user.is_superuser and request.user.role not in ['admin_cliente', 'super_admin']:
         messages.error(request, "No tiene permisos para editar usuarios.")
         return redirect('home')
     
     # admin_cliente solo puede editar usuarios de su empresa
-    if request.user.role == 'admin_cliente' and user_obj.company != request.user.company:
+    if not request.user.is_superuser and request.user.role == 'admin_cliente' and user_obj.company != request.user.company:
         messages.error(request, "No puede editar usuarios de otra empresa.")
         return redirect('user_list')
     
@@ -810,7 +843,7 @@ def user_delete_view(request, user_id):
     """Eliminar usuario"""
     user_obj = get_object_or_404(User, id=user_id)
     
-    if request.user.role not in ['admin_cliente', 'super_admin']:
+    if not request.user.is_superuser and request.user.role not in ['admin_cliente', 'super_admin']:
         messages.error(request, "No tiene permisos para eliminar usuarios.")
         return redirect('home')
     
@@ -834,18 +867,18 @@ def user_delete_view(request, user_id):
 @login_required
 def inventory_view(request):
     """Gestionar inventario por sucursal"""
-    if request.user.role not in ['gerente', 'admin_cliente', 'super_admin', 'vendedor']:
+    if not request.user.is_superuser and request.user.role not in ['gerente', 'admin_cliente', 'vendedor']:
         messages.error(request, "No tiene permisos para ver inventario.")
-        return redirect('home')
+        return redirect('subscription_list' if request.user.role == 'super_admin' else 'product_list')
     
     branch_id = request.GET.get('branch')
     inventory = Inventory.objects.select_related('product', 'branch').all()
     branches = Branch.objects.all()
     
-    # Filtrar por empresa si no es super_admin
-    if request.user.role != 'super_admin' and request.user.company:
-        branches = branches.filter(name__contains=request.user.company)
-        inventory = inventory.filter(branch__in=branches)
+    # Filtrar por empresa si no es super_admin ni superuser
+    if not request.user.is_superuser and request.user.role != 'super_admin' and request.user.company:
+        branches = branches.filter(company=request.user.company)
+        inventory = inventory.filter(branch__company=request.user.company)
     
     if branch_id:
         inventory = inventory.filter(branch_id=branch_id)
@@ -887,15 +920,15 @@ def inventory_edit_view(request, inventory_id):
 @login_required
 def branch_list_view(request):
     """Listar sucursales"""
-    if request.user.role not in ['admin_cliente', 'super_admin']:
+    if not request.user.is_superuser and request.user.role != 'admin_cliente':
         messages.error(request, "No tiene permisos para ver sucursales.")
-        return redirect('home')
+        return redirect('subscription_list' if request.user.role == 'super_admin' else 'product_list')
     
-    # super_admin ve todas; admin_cliente solo su empresa
-    if request.user.role == 'super_admin':
+    # Admin_cliente solo ve sucursales de su empresa; superuser ve todas
+    if request.user.is_superuser:
         branches = Branch.objects.all()
     else:
-        branches = Branch.objects.filter(name__contains=request.user.company)
+        branches = Branch.objects.filter(company=request.user.company)
     
     return render(request, 'core/branch_list.html', {'branches': branches})
 
@@ -903,7 +936,7 @@ def branch_list_view(request):
 @login_required
 def branch_create_view(request):
     """Crear nueva sucursal"""
-    if request.user.role not in ['admin_cliente', 'super_admin']:
+    if not request.user.is_superuser and request.user.role not in ['admin_cliente', 'super_admin']:
         messages.error(request, "No tiene permisos para crear sucursales.")
         return redirect('home')
     
@@ -935,7 +968,7 @@ def branch_edit_view(request, branch_id):
     """Editar sucursal"""
     branch = get_object_or_404(Branch, id=branch_id)
     
-    if request.user.role not in ['admin_cliente', 'super_admin']:
+    if not request.user.is_superuser and request.user.role not in ['admin_cliente', 'super_admin']:
         messages.error(request, "No tiene permisos para editar sucursales.")
         return redirect('home')
     
@@ -959,7 +992,7 @@ def branch_delete_view(request, branch_id):
     """Eliminar sucursal"""
     branch = get_object_or_404(Branch, id=branch_id)
     
-    if request.user.role not in ['admin_cliente', 'super_admin']:
+    if not request.user.is_superuser and request.user.role not in ['admin_cliente', 'super_admin']:
         messages.error(request, "No tiene permisos para eliminar sucursales.")
         return redirect('home')
     
@@ -979,9 +1012,9 @@ def branch_delete_view(request, branch_id):
 @login_required
 def supplier_list_view(request):
     """Listar proveedores"""
-    if request.user.role not in ['gerente', 'admin_cliente', 'super_admin']:
+    if not request.user.is_superuser and request.user.role not in ['gerente', 'admin_cliente']:
         messages.error(request, "No tiene permisos para ver proveedores.")
-        return redirect('home')
+        return redirect('subscription_list' if request.user.role == 'super_admin' else 'product_list')
     
     suppliers = Supplier.objects.all().prefetch_related('products')
     return render(request, 'core/supplier_list.html', {'suppliers': suppliers})
@@ -990,7 +1023,7 @@ def supplier_list_view(request):
 @login_required
 def supplier_create_view(request):
     """Crear nuevo proveedor"""
-    if request.user.role not in ['gerente', 'admin_cliente', 'super_admin']:
+    if not request.user.is_superuser and request.user.role not in ['gerente', 'admin_cliente', 'super_admin']:
         messages.error(request, "No tiene permisos para crear proveedores.")
         return redirect('home')
     
@@ -1018,7 +1051,7 @@ def supplier_edit_view(request, supplier_id):
     """Editar proveedor"""
     supplier = get_object_or_404(Supplier, id=supplier_id)
     
-    if request.user.role not in ['gerente', 'admin_cliente', 'super_admin']:
+    if not request.user.is_superuser and request.user.role not in ['gerente', 'admin_cliente', 'super_admin']:
         messages.error(request, "No tiene permisos para editar proveedores.")
         return redirect('home')
     
@@ -1042,7 +1075,7 @@ def supplier_delete_view(request, supplier_id):
     """Eliminar proveedor"""
     supplier = get_object_or_404(Supplier, id=supplier_id)
     
-    if request.user.role not in ['gerente', 'admin_cliente', 'super_admin']:
+    if not request.user.is_superuser and request.user.role not in ['gerente', 'admin_cliente', 'super_admin']:
         messages.error(request, "No tiene permisos para eliminar proveedores.")
         return redirect('home')
     
@@ -1082,12 +1115,16 @@ def product_detail_view(request, product_id):
 @login_required
 def sales_list_view(request):
     """Lista de ventas (POS) y compras (e-commerce) con filtros"""
-    if request.user.role not in ['gerente', 'admin_cliente', 'super_admin']:
+    if not request.user.is_superuser and request.user.role not in ['gerente', 'admin_cliente', 'super_admin']:
         messages.error(request, "No tiene permisos para ver ventas.")
         return redirect('home')
     
     # Obtener ventas POS
     sales = Sale.objects.select_related('branch', 'user').prefetch_related('items__product').order_by('-created_at')
+    
+    # Filtrar por empresa si no es super_admin ni superuser
+    if not request.user.is_superuser and request.user.role != 'super_admin' and request.user.company:
+        sales = sales.filter(branch__company=request.user.company)
     
     # Obtener compras e-commerce
     orders = Order.objects.prefetch_related('items__product').order_by('-created_at')
@@ -1131,7 +1168,11 @@ def sales_list_view(request):
     if branch_id:
         sales = sales.filter(branch_id=branch_id)
     
-    branches = Branch.objects.all()
+    # Filtrar sucursales por empresa
+    if request.user.is_superuser or request.user.role == 'super_admin':
+        branches = Branch.objects.all()
+    else:
+        branches = Branch.objects.filter(company=request.user.company)
     
     return render(request, 'core/sales_list.html', {
         'sales': sales,
@@ -1148,9 +1189,9 @@ def sales_list_view(request):
 @login_required
 def reports_view(request):
     """Dashboard de reportes HTML"""
-    if request.user.role not in ['gerente', 'admin_cliente', 'super_admin']:
+    if not request.user.is_superuser and request.user.role not in ['gerente', 'admin_cliente']:
         messages.error(request, "No tiene permisos para ver reportes.")
-        return redirect('home')
+        return redirect('subscription_list' if request.user.role == 'super_admin' else 'product_list')
     
     return render(request, 'core/reports.html')
 
@@ -1158,16 +1199,16 @@ def reports_view(request):
 @login_required
 def stock_report_view(request):
     """Reporte de stock visual en HTML"""
-    if request.user.role not in ['gerente', 'admin_cliente', 'super_admin']:
+    if not request.user.is_superuser and request.user.role not in ['gerente', 'admin_cliente', 'super_admin']:
         messages.error(request, "No tiene permisos para ver reportes.")
         return redirect('home')
     
     branch_id = request.GET.get('branch')
     branches = Branch.objects.all()
     
-    # Filtrar por empresa si no es super_admin
-    if request.user.role != 'super_admin' and request.user.company:
-        branches = branches.filter(name__contains=request.user.company)
+    # Filtrar por empresa si no es super_admin ni superuser
+    if not request.user.is_superuser and request.user.role != 'super_admin' and request.user.company:
+        branches = branches.filter(company=request.user.company)
     
     if branch_id:
         selected_branches = branches.filter(id=branch_id)

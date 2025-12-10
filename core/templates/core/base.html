@@ -103,20 +103,20 @@
                             <li class="nav-item"><a class="nav-link" href="{% url 'reports' %}">Reportes</a></li>
                         {% endif %}
 
-                        {# Admin Cliente: Productos, Proveedores, Sucursales, Stock, Suscripción, Reportes, Usuarios #}
-                        {% if request.user.role == 'admin_cliente' or request.user.role == 'super_admin' %}
+                        {# Admin Cliente: Control total de su empresa #}
+                        {% if request.user.role == 'admin_cliente' %}
                             <li class="nav-item"><a class="nav-link" href="{% url 'product_list' %}">Productos</a></li>
                             <li class="nav-item"><a class="nav-link" href="{% url 'supplier_list' %}">Proveedores</a></li>
                             <li class="nav-item"><a class="nav-link" href="{% url 'branch_list' %}">Sucursales</a></li>
                             <li class="nav-item"><a class="nav-link" href="{% url 'inventory' %}">Stock</a></li>
+                            <li class="nav-item"><a class="nav-link" href="{% url 'sales_list' %}">Ventas</a></li>
                             <li class="nav-item"><a class="nav-link" href="{% url 'subscription' %}">Suscripción</a></li>
                             <li class="nav-item"><a class="nav-link" href="{% url 'reports' %}">Reportes</a></li>
                             <li class="nav-item"><a class="nav-link" href="{% url 'user_list' %}">Usuarios</a></li>
                         {% endif %}
 
-                        {# Super Admin: Gestión de Suscripciones #}
+                        {# Super Admin: Solo gestión de clientes/tenants y facturación (TemucoSoft) #}
                         {% if request.user.role == 'super_admin' %}
-                            <li class="nav-item"><a class="nav-link" href="{% url 'subscription_list' %}">Suscripciones</a></li>
                         {% endif %}
 
                         {# Cliente Final: Tienda Online #}
@@ -127,9 +127,24 @@
 
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                                {{ request.user.username }}
+                                <strong>{{ request.user.username }}</strong>
+                                {% if request.user.role == 'super_admin' %}
+                                    <span class="badge bg-danger ms-2">Admin Sistema</span>
+                                {% elif request.user.role == 'admin_cliente' %}
+                                    <span class="badge bg-warning ms-2">Admin Empresa</span>
+                                {% elif request.user.role == 'gerente' %}
+                                    <span class="badge bg-info ms-2">Gerente</span>
+                                {% elif request.user.role == 'vendedor' %}
+                                    <span class="badge bg-success ms-2">Vendedor</span>
+                                {% elif request.user.role == 'cliente_final' %}
+                                    <span class="badge bg-secondary ms-2">Cliente</span>
+                                {% endif %}
                             </a>
                             <ul class="dropdown-menu">
+                                {% if request.user.company %}
+                                    <li><span class="dropdown-item-text">Empresa: <strong>{{ request.user.company }}</strong></span></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                {% endif %}
                                 <li><a class="dropdown-item" href="{% url 'logout' %}">Cerrar Sesión</a></li>
                             </ul>
                         </li>

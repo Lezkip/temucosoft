@@ -37,7 +37,7 @@
         }
         .form-group { margin-bottom: 18px; }
         label { display: block; margin-bottom: 6px; color: #cbd5e1; font-weight: 600; }
-        input[type="text"] {
+        input[type="text"], select {
             width: 100%;
             padding: 12px;
             border: 1px solid #1f2937;
@@ -47,7 +47,14 @@
             font-size: 15px;
             transition: border-color 0.2s, box-shadow 0.2s;
         }
-        input[type="text"]:focus {
+        select {
+            cursor: pointer;
+        }
+        select option {
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        input[type="text"]:focus, select:focus {
             outline: none;
             border-color: #38bdf8;
             box-shadow: 0 0 0 3px rgba(56,189,248,0.15);
@@ -92,8 +99,13 @@
             {% csrf_token %}
             <div class="form-group">
                 <label for="company">Empresa</label>
-                <input type="text" id="company" name="company" placeholder="Ej: temucosoft" required />
-                <div class="hint">Debe existir al menos un usuario asociado a la empresa.</div>
+                <select id="company" name="company" required>
+                    <option value="">-- Selecciona tu empresa --</option>
+                    {% for company in companies %}
+                        <option value="{{ company }}">{{ company }}</option>
+                    {% endfor %}
+                </select>
+                <div class="hint">Selecciona la empresa asociada a tu cuenta.</div>
             </div>
             <button type="submit" class="btn">Continuar</button>
         </form>

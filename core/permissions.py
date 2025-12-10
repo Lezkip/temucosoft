@@ -5,6 +5,9 @@ class IsAdminCliente(permissions.BasePermission):
     def has_permission(self, request, view):
         if not request.user.is_authenticated:
             return False
+        # Superusuarios tienen acceso total
+        if request.user.is_superuser:
+            return True
         # super_admin tiene acceso a todo
         if request.user.role == 'super_admin':
             return True
@@ -14,6 +17,9 @@ class IsGerente(permissions.BasePermission):
     def has_permission(self, request, view):
         if not request.user.is_authenticated:
             return False
+        # Superusuarios tienen acceso total
+        if request.user.is_superuser:
+            return True
         # super_admin tiene acceso a todo
         if request.user.role == 'super_admin':
             return True
@@ -24,6 +30,9 @@ class IsVendedor(permissions.BasePermission):
     def has_permission(self, request, view):
         if not request.user.is_authenticated:
             return False
+        # Superusuarios tienen acceso total
+        if request.user.is_superuser:
+            return True
         # super_admin tiene acceso a todo
         if request.user.role == 'super_admin':
             return True
@@ -35,6 +44,9 @@ class HasAPIAccess(permissions.BasePermission):
     def has_permission(self, request, view):
         if not request.user.is_authenticated:
             return False
+        # Superusuarios tienen acceso total
+        if request.user.is_superuser:
+            return True
         
         # Super admin siempre tiene acceso total
         if request.user.role == 'super_admin':
