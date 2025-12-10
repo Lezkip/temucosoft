@@ -790,7 +790,9 @@ def user_create_view(request):
     # Obtener lista de empresas únicas para super_admin
     companies = []
     if request.user.role == 'super_admin':
-        companies = User.objects.exclude(company__isnull=True).exclude(company='').values_list('company', flat=True).distinct().order_by('company')
+        companies_users = User.objects.exclude(company__isnull=True).exclude(company='').values_list('company', flat=True)
+        companies_subs = Subscription.objects.exclude(company__isnull=True).exclude(company='').values_list('company', flat=True)
+        companies = sorted(set(companies_users) | set(companies_subs))
     
     return render(request, 'core/user_form.html', {
         'mode': 'create',
