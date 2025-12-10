@@ -99,7 +99,7 @@
                         {% if request.user.role == 'gerente' %}
                             <li class="nav-item"><a class="nav-link" href="{% url 'product_list' %}">Productos</a></li>
                             <li class="nav-item"><a class="nav-link" href="{% url 'supplier_list' %}">Proveedores</a></li>
-                            <li class="nav-item"><a class="nav-link" href="{% url 'stock_report' %}">Stock</a></li>
+                            <li class="nav-item"><a class="nav-link" href="{% url 'inventory' %}">Stock</a></li>
                             <li class="nav-item"><a class="nav-link" href="{% url 'reports' %}">Reportes</a></li>
                         {% endif %}
 
@@ -108,7 +108,7 @@
                             <li class="nav-item"><a class="nav-link" href="{% url 'product_list' %}">Productos</a></li>
                             <li class="nav-item"><a class="nav-link" href="{% url 'supplier_list' %}">Proveedores</a></li>
                             <li class="nav-item"><a class="nav-link" href="{% url 'branch_list' %}">Sucursales</a></li>
-                            <li class="nav-item"><a class="nav-link" href="{% url 'stock_report' %}">Stock</a></li>
+                            <li class="nav-item"><a class="nav-link" href="{% url 'inventory' %}">Stock</a></li>
                             <li class="nav-item"><a class="nav-link" href="{% url 'subscription' %}">Suscripción</a></li>
                             <li class="nav-item"><a class="nav-link" href="{% url 'reports' %}">Reportes</a></li>
                             <li class="nav-item"><a class="nav-link" href="{% url 'user_list' %}">Usuarios</a></li>

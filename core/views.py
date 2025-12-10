@@ -151,7 +151,7 @@ class SaleViewSet(viewsets.ModelViewSet):
         # super_admin tiene acceso total
         if self.request.user and self.request.user.role == 'super_admin':
             return [permissions.IsAuthenticated()]
-        return [IsVendedor]
+        return [IsVendedor()]
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -459,34 +459,86 @@ class CartViewSet(viewsets.ViewSet):
 def home_view(request):
     return render(request, 'core/index.html')
 
+def company_login_view(request):
+    """Paso 1: seleccionar la empresa antes del login de usuario."""
+    if request.method == 'POST':
+        company = request.POST.get('company', '').strip()
+
+        if not company:
+            messages.error(request, "Ingresa el nombre de la empresa para continuar.")
+            return redirect('company_login')
+
+        # Validamos que exista al menos un usuario asociado a la empresa
+        if not User.objects.filter(company__iexact=company).exists():
+            messages.error(request, "No existe ninguna cuenta asociada a esa empresa.")
+            return redirect('company_login')
+
+        # Guardamos la empresa seleccionada en sesión para usarla en el login de usuario
+        request.session['selected_company'] = company
+        messages.success(request, f"Empresa '{company}' seleccionada. Ahora inicia sesión con tu usuario.")
+        return redirect('login')
+
+    return render(request, 'core/company_login.html')
+
+
 def login_view(request):
+    """Paso 2: login de usuario validando que pertenezca a la empresa elegida."""
+    selected_company = request.session.get('selected_company')
+    if not selected_company:
+        return redirect('company_login')
+
     if request.method == 'POST':
         form = AuthenticationForm(request, data=request.POST)
         if form.is_valid():
             user = form.get_user()
+
+            # Validar que el usuario pertenezca a la empresa elegida
+            if not user.company or user.company.lower() != selected_company.lower():
+                messages.error(request, "El usuario no pertenece a la empresa seleccionada.")
+                return redirect('login')
+
+            # Restringir super_admin solo a la empresa temucosoft
+            if user.role == 'super_admin' and selected_company.lower() != 'temucosoft':
+                messages.error(request, "El rol super_admin solo puede usarse con la empresa 'temucosoft'.")
+                return redirect('login')
+
             login(request, user)
             return redirect('/')
         else:
             messages.error(request, "Usuario o contraseña inválidos")
     else:
         form = AuthenticationForm()
-    return render(request, 'core/login.html', {'form': form})
+
+    return render(request, 'core/login.html', {
+        'form': form,
+        'selected_company': selected_company,
+    })
 
 def logout_view(request):
     if request.user.is_authenticated:
         # Mensaje antes de cerrar la sesión
         messages.success(request, "Sesión cerrada correctamente.")
         logout(request)
+
+    # Limpiar la empresa seleccionada
+    if 'selected_company' in request.session:
+        del request.session['selected_company']
     
     # Redirige a la página de login (la cual es un template limpio)
-    return redirect('login')
+    return redirect('company_login')
 
 
 @login_required
 def product_list_view(request):
     # Permitido para todos los usuarios (interno o e-commerce)
-    # Obtenemos productos y anotamos el stock total (suma de inventarios)
-    products = Product.objects.annotate(total_stock=Sum('inventory__stock'))
+    # super_admin ve todos; otros ven solo productos de su empresa
+    if request.user.role == 'super_admin':
+        products = Product.objects.select_related('supplier').annotate(total_stock=Sum('inventory__stock'))
+    else:
+        # Filtrar productos que estén en sucursales de su empresa
+        products = Product.objects.filter(
+            inventory__branch__name__contains=request.user.company
+        ).distinct().select_related('supplier').annotate(total_stock=Sum('inventory__stock'))
     
     return render(request, 'core/product_list.html', {'products': products})
 
@@ -498,18 +550,28 @@ def pos_view(request):
         messages.error(request, "Acceso denegado al POS.")
         return redirect('home')
 
-    # Nuevo: Convertir el precio a entero antes de serializar a JSON
-    products_data = Product.objects.all()
+    # super_admin ve todos; otros ven solo productos de su empresa
+    if request.user.role == 'super_admin':
+        products_data = Product.objects.all()
+    else:
+        products_data = Product.objects.filter(
+            inventory__branch__name__contains=request.user.company
+        ).distinct()
+    
     products_list = []
     for p in products_data:
         products_list.append({
             'id': p.id,
             'sku': p.sku,
             'name': p.name,
-            'price': int(p.price), # Aquí se elimina el decimal
+            'price': int(p.price),
         })
 
-    branches = Branch.objects.all()
+    # super_admin ve todas las sucursales; otros ven solo su empresa
+    if request.user.role == 'super_admin':
+        branches = Branch.objects.all()
+    else:
+        branches = Branch.objects.filter(name__contains=request.user.company)
     
     context = {
         'products_json': json.dumps(products_list, default=str),
@@ -525,8 +587,12 @@ def user_list_view(request):
         messages.error(request, "Acceso denegado. Se requiere rol de Administrador de Cliente.")
         return redirect('home')
 
-    # Obtenemos todos los usuarios (excepto el usuario actual, opcional)
-    users = User.objects.all().order_by('username')
+    # super_admin ve todos; admin_cliente solo ve su empresa
+    if request.user.role == 'super_admin':
+        users = User.objects.all().order_by('username')
+    else:
+        users = User.objects.filter(company=request.user.company).order_by('username')
+    
     return render(request, 'core/user_list.html', {'users': users})
 
 
@@ -668,6 +734,13 @@ def user_create_view(request):
             return redirect('user_create')
         
         try:
+            # admin_cliente solo puede crear usuarios para su empresa
+            # super_admin puede especificar la empresa
+            if request.user.role == 'super_admin':
+                company = request.POST.get('company', '')
+            else:
+                company = request.user.company
+            
             user = User.objects.create_user(
                 username=username,
                 email=email,
@@ -676,6 +749,7 @@ def user_create_view(request):
                 last_name=last_name,
                 rut=rut if rut else None,
                 role=role,
+                company=company,
                 is_active=True
             )
             messages.success(request, f"Usuario '{username}' creado exitosamente.")
@@ -683,7 +757,12 @@ def user_create_view(request):
         except Exception as e:
             messages.error(request, f"Error al crear usuario: {str(e)}")
     
-    return render(request, 'core/user_form.html', {'mode': 'create'})
+    # Obtener lista de empresas únicas para super_admin
+    companies = []
+    if request.user.role == 'super_admin':
+        companies = User.objects.exclude(company__isnull=True).exclude(company='').values_list('company', flat=True).distinct().order_by('company')
+    
+    return render(request, 'core/user_form.html', {'mode': 'create', 'companies': companies})
 
 
 @login_required
@@ -695,11 +774,18 @@ def user_edit_view(request, user_id):
         messages.error(request, "No tiene permisos para editar usuarios.")
         return redirect('home')
     
+    # admin_cliente solo puede editar usuarios de su empresa
+    if request.user.role == 'admin_cliente' and user_obj.company != request.user.company:
+        messages.error(request, "No puede editar usuarios de otra empresa.")
+        return redirect('user_list')
+    
     if request.method == 'POST':
         user_obj.email = request.POST.get('email', user_obj.email)
         user_obj.first_name = request.POST.get('first_name', user_obj.first_name)
         user_obj.last_name = request.POST.get('last_name', user_obj.last_name)
-        user_obj.role = request.POST.get('role', user_obj.role)
+        role = request.POST.get('role', user_obj.role)
+        
+        user_obj.role = role
         rut = request.POST.get('rut', '')
         user_obj.rut = rut if rut else None
         is_active = request.POST.get('is_active') == 'on'
@@ -748,13 +834,18 @@ def user_delete_view(request, user_id):
 @login_required
 def inventory_view(request):
     """Gestionar inventario por sucursal"""
-    if request.user.role not in ['gerente', 'admin_cliente', 'super_admin']:
+    if request.user.role not in ['gerente', 'admin_cliente', 'super_admin', 'vendedor']:
         messages.error(request, "No tiene permisos para ver inventario.")
         return redirect('home')
     
     branch_id = request.GET.get('branch')
     inventory = Inventory.objects.select_related('product', 'branch').all()
     branches = Branch.objects.all()
+    
+    # Filtrar por empresa si no es super_admin
+    if request.user.role != 'super_admin' and request.user.company:
+        branches = branches.filter(name__contains=request.user.company)
+        inventory = inventory.filter(branch__in=branches)
     
     if branch_id:
         inventory = inventory.filter(branch_id=branch_id)
@@ -800,7 +891,12 @@ def branch_list_view(request):
         messages.error(request, "No tiene permisos para ver sucursales.")
         return redirect('home')
     
-    branches = Branch.objects.all()
+    # super_admin ve todas; admin_cliente solo su empresa
+    if request.user.role == 'super_admin':
+        branches = Branch.objects.all()
+    else:
+        branches = Branch.objects.filter(name__contains=request.user.company)
+    
     return render(request, 'core/branch_list.html', {'branches': branches})
 
 
@@ -1069,6 +1165,10 @@ def stock_report_view(request):
     branch_id = request.GET.get('branch')
     branches = Branch.objects.all()
     
+    # Filtrar por empresa si no es super_admin
+    if request.user.role != 'super_admin' and request.user.company:
+        branches = branches.filter(name__contains=request.user.company)
+    
     if branch_id:
         selected_branches = branches.filter(id=branch_id)
     else:
@@ -1109,7 +1209,14 @@ def subscription_view(request):
     
     subscription = Subscription.objects.filter(company=request.user.company, active=True).first()
     
-    return render(request, 'core/subscription.html', {'subscription': subscription})
+    # admin_cliente ve su suscripción pero no puede gestionarla
+    # super_admin puede gestionar todas
+    can_manage = request.user.role == 'super_admin'
+    
+    return render(request, 'core/subscription.html', {
+        'subscription': subscription,
+        'can_manage': can_manage
+    })
 
 
 @login_required
@@ -1264,11 +1371,33 @@ def checkout_view(request):
                     price=price
                 )
                 
+                # Descontar stock de todas las sucursales (para compras online)
+                # Se descuenta proporcionalmente o de la primera disponible
+                inventories = Inventory.objects.filter(product=product).order_by('branch')
+                remaining_quantity = quantity
+                
+                for inventory in inventories:
+                    if remaining_quantity <= 0:
+                        break
+                    
+                    if inventory.stock >= remaining_quantity:
+                        inventory.stock -= remaining_quantity
+                        inventory.save()
+                        remaining_quantity = 0
+                    else:
+                        remaining_quantity -= inventory.stock
+                        inventory.stock = 0
+                        inventory.save()
+                
+                if remaining_quantity > 0:
+                    order.delete()
+                    messages.error(request, f"Stock insuficiente de {product.name}")
+                    return redirect('cart')
+                
                 total += price * quantity
             
             order.total = total
             order.save()
-            
             
             messages.success(request, "Compra realizada correctamente.")
             return redirect('home')

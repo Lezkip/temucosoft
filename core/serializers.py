@@ -64,9 +64,18 @@ class SaleSerializer(serializers.ModelSerializer):
             SaleItem.objects.create(sale=sale, price=price, **item_data)
             
             # Descontar stock
-            inventory = Inventory.objects.get(branch=sale.branch, product=product)
-            inventory.stock -= quantity
-            inventory.save()
+            try:
+                inventory = Inventory.objects.get(branch=sale.branch, product=product)
+                if inventory.stock < quantity:
+                    raise serializers.ValidationError(
+                        f"Stock insuficiente de {product.name}. Disponible: {inventory.stock}, Solicitado: {quantity}"
+                    )
+                inventory.stock -= quantity
+                inventory.save()
+            except Inventory.DoesNotExist:
+                raise serializers.ValidationError(
+                    f"No existe registro de inventario para {product.name} en esta sucursal"
+                )
             
             total_venta += price * quantity
             

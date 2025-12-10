@@ -70,9 +70,24 @@
                             <option value="vendedor" {% if user.role == 'vendedor' %}selected{% endif %}>Vendedor</option>
                             <option value="gerente" {% if user.role == 'gerente' %}selected{% endif %}>Gerente</option>
                             <option value="admin_cliente" {% if user.role == 'admin_cliente' %}selected{% endif %}>Admin Cliente</option>
-                            <option value="super_admin" {% if user.role == 'super_admin' %}selected{% endif %}>Super Admin</option>
+                            <option value="cliente_final" {% if user.role == 'cliente_final' %}selected{% endif %}>Cliente Final</option>
                         </select>
                     </div>
+
+                    {% if request.user.role == 'super_admin' and mode == 'create' %}
+                    <div class="mb-3">
+                        <label for="company" class="form-label">Empresa *</label>
+                        <input type="text" class="form-control" id="company" name="company" 
+                               list="companies-list" required
+                               placeholder="Ingrese el nombre de la empresa">
+                        <datalist id="companies-list">
+                            {% for company in companies %}
+                                <option value="{{ company }}">
+                            {% endfor %}
+                        </datalist>
+                        <small class="text-muted">Seleccione de la lista o ingrese una nueva empresa</small>
+                    </div>
+                    {% endif %}
 
                     {% if mode == 'edit' %}
                     <div class="mb-3">

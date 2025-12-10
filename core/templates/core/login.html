@@ -152,6 +152,10 @@
         <div class="login-header">
             <h1>TemucoSoft</h1>
             <p>Sistema de Gestión de Inventario y POS</p>
+            {% if selected_company %}
+            <p style="margin-top:6px; font-weight:600; color:#4f46e5;">Empresa: {{ selected_company }}</p>
+            <p style="font-size:12px; color:#6b7280;">¿No es tu empresa? <a href="{% url 'company_login' %}" style="color:#4f46e5;">Cambiar</a></p>
+            {% endif %}
         </div>
 
         {% if messages %}

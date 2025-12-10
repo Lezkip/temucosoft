@@ -72,10 +72,12 @@
                             <span class="badge bg-warning text-dark">Próxima a Vencer</span>
                         {% endif %}
                     </div>
+                    {% if can_manage %}
                     <div>
                         <button class="btn btn-primary" disabled>Renovar Suscripción</button>
                         <button class="btn btn-outline-secondary" disabled>Cambiar Plan</button>
                     </div>
+                    {% endif %}
                 </div>
             </div>
         </div>

@@ -15,8 +15,10 @@
                 <thead class="table-dark">
                     <tr>
                         <th>Usuario</th>
-                        <th>Email</th>
                         <th>Nombre</th>
+                        {% if request.user.role == 'super_admin' %}
+                            <th>Empresa</th>
+                        {% endif %}
                         <th>Rol</th>
                         <th>Activo</th>
                         <th>Acciones</th>
@@ -26,8 +28,16 @@
                     {% for user_obj in users %}
                     <tr>
                         <td>{{ user_obj.username }}</td>
-                        <td>{{ user_obj.email|default:'-' }}</td>
                         <td>{{ user_obj.first_name }} {{ user_obj.last_name }}</td>
+                        {% if request.user.role == 'super_admin' %}
+                            <td>
+                                {% if user_obj.company %}
+                                    <span class="badge bg-info text-dark">{{ user_obj.company }}</span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                        {% endif %}
                         <td><span class="badge bg-secondary">{{ user_obj.get_role_display }}</span></td>
                         <td>
                             {% if user_obj.is_active %}
@@ -43,7 +53,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center py-4">No hay usuarios registrados.</td>
+                        <td colspan="{% if request.user.role == 'super_admin' %}6{% else %}5{% endif %}" class="text-center py-4">No hay usuarios registrados.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

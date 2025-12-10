@@ -3,7 +3,7 @@ from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 # Importación obligatoria de las vistas web
 from core.views import (
-    home_view, login_view, logout_view, product_list_view, pos_view, user_list_view,
+    home_view, company_login_view, login_view, logout_view, product_list_view, pos_view, user_list_view,
     product_create_view, product_edit_view, product_delete_view, product_detail_view,
     user_create_view, user_edit_view, user_delete_view,
     inventory_view, inventory_edit_view,
@@ -24,6 +24,7 @@ urlpatterns = [
     
     # Rutas Web (Frontend - HTML)
     path('', home_view, name='home'),
+    path('empresa/', company_login_view, name='company_login'),
     path('login/', login_view, name='login'),
     path('logout/', logout_view, name='logout'),
     
